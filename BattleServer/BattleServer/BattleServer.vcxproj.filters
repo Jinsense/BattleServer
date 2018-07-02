@@ -1,0 +1,159 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="LIB">
+      <UniqueIdentifier>{2e011f4d-0c7c-425b-8c9d-397f438287a1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleServer">
+      <UniqueIdentifier>{5d6bd3c0-ea1a-467b-86c0-1a50aeefd031}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\CPUUsage">
+      <UniqueIdentifier>{ef0d6ab2-612f-4c63-a76a-3e02a3ebfefa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\Dump">
+      <UniqueIdentifier>{d97d961e-cfb7-4d8b-9db1-176a4d9e3a40}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\Ehternet">
+      <UniqueIdentifier>{fd89fb75-a5d1-4193-b923-e183e3a384e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\LanClient">
+      <UniqueIdentifier>{fba7afec-6a2d-4100-b6f3-78aa7389f73e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\LanServer">
+      <UniqueIdentifier>{3220d146-7687-49ba-8bdb-37cddfd328d5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\Log">
+      <UniqueIdentifier>{2a3765ac-d249-495c-811d-df56ab1fcfa9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\MemoryPool">
+      <UniqueIdentifier>{f96b3984-7e7e-4fdb-9399-febb41db5917}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\Packet">
+      <UniqueIdentifier>{47e72d77-cab1-4264-bbc0-116f9d5ddff9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\Parse">
+      <UniqueIdentifier>{8367663d-ad1b-4f13-aaed-6a4b1397c28a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LIB\RingBuffer">
+      <UniqueIdentifier>{17be4835-ea9c-40df-8dd5-7c77fce9c19b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleServer\Common">
+      <UniqueIdentifier>{8dab80e3-a78b-4745-9ae2-3fbc07007471}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleServer\Config">
+      <UniqueIdentifier>{26d535d9-e293-48ef-ab35-245e36a48a0f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleServer\Server">
+      <UniqueIdentifier>{50c607cc-bf23-4665-9e50-d18a3ee8ba59}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleServer\Player">
+      <UniqueIdentifier>{31957b5c-f8aa-4049-a430-cdcd1760d062}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="CpuUsage.cpp">
+      <Filter>LIB\CPUUsage</Filter>
+    </ClCompile>
+    <ClCompile Include="APIHook.cpp">
+      <Filter>LIB\Dump</Filter>
+    </ClCompile>
+    <ClCompile Include="Dump.cpp">
+      <Filter>LIB\Dump</Filter>
+    </ClCompile>
+    <ClCompile Include="EtherNet_PDH.cpp">
+      <Filter>LIB\Ehternet</Filter>
+    </ClCompile>
+    <ClCompile Include="LanClient.cpp">
+      <Filter>LIB\LanClient</Filter>
+    </ClCompile>
+    <ClCompile Include="Log.cpp">
+      <Filter>LIB\Log</Filter>
+    </ClCompile>
+    <ClCompile Include="RingBuffer.cpp">
+      <Filter>LIB\RingBuffer</Filter>
+    </ClCompile>
+    <ClCompile Include="Parse.cpp">
+      <Filter>LIB\Parse</Filter>
+    </ClCompile>
+    <ClCompile Include="Packet.cpp">
+      <Filter>LIB\Packet</Filter>
+    </ClCompile>
+    <ClCompile Include="Config.cpp">
+      <Filter>BattleServer\Config</Filter>
+    </ClCompile>
+    <ClCompile Include="Player.cpp">
+      <Filter>BattleServer\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="Session.cpp">
+      <Filter>BattleServer\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="GameServer.cpp">
+      <Filter>BattleServer\Server</Filter>
+    </ClCompile>
+    <ClCompile Include="BattleServer.cpp">
+      <Filter>BattleServer\Server</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CpuUsage.h">
+      <Filter>LIB\CPUUsage</Filter>
+    </ClInclude>
+    <ClInclude Include="APIHook.h">
+      <Filter>LIB\Dump</Filter>
+    </ClInclude>
+    <ClInclude Include="Dump.h">
+      <Filter>LIB\Dump</Filter>
+    </ClInclude>
+    <ClInclude Include="EtherNet_PDH.h">
+      <Filter>LIB\Ehternet</Filter>
+    </ClInclude>
+    <ClInclude Include="LanClient.h">
+      <Filter>LIB\LanClient</Filter>
+    </ClInclude>
+    <ClInclude Include="Log.h">
+      <Filter>LIB\Log</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFreeQueue.h">
+      <Filter>LIB\MemoryPool</Filter>
+    </ClInclude>
+    <ClInclude Include="LockFreeStack.h">
+      <Filter>LIB\MemoryPool</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryPool.h">
+      <Filter>LIB\MemoryPool</Filter>
+    </ClInclude>
+    <ClInclude Include="RingBuffer.h">
+      <Filter>LIB\RingBuffer</Filter>
+    </ClInclude>
+    <ClInclude Include="Parse.h">
+      <Filter>LIB\Parse</Filter>
+    </ClInclude>
+    <ClInclude Include="Packet.h">
+      <Filter>LIB\Packet</Filter>
+    </ClInclude>
+    <ClInclude Include="CommonProtocol.h">
+      <Filter>BattleServer\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Config.h">
+      <Filter>BattleServer\Config</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
+      <Filter>BattleServer\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="Session.h">
+      <Filter>BattleServer\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="GameServer.h">
+      <Filter>BattleServer\Server</Filter>
+    </ClInclude>
+    <ClInclude Include="BattleServer.h">
+      <Filter>BattleServer\Server</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BattleServer_Config.ini">
+      <Filter>BattleServer\Common</Filter>
+    </None>
+  </ItemGroup>
+</Project>
