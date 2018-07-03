@@ -8,13 +8,21 @@ CConfig::CConfig()
 	ZeroMemory(&MASTERTOKEN, sizeof(MASTERTOKEN));
 	MASTERTOKEN_SIZE = eNUM_BUF * 2;
 
-	ZeroMemory(&MATCH_BIND_IP, sizeof(MATCH_BIND_IP));
-	MATCH_BIND_IP_SIZE = eNUM_BUF;
-	MATCH_BIND_PORT = NULL;
-
 	ZeroMemory(&BATTLE_BIND_IP, sizeof(BATTLE_BIND_IP));
 	BATTLE_BIND_IP_SIZE = eNUM_BUF;
 	BATTLE_BIND_PORT = NULL;
+
+	ZeroMemory(&MASTER_BIND_IP, sizeof(MASTER_BIND_IP));
+	MASTER_BIND_IP_SIZE = eNUM_BUF;
+	MASTER_BIND_PORT = NULL;
+
+	ZeroMemory(&CHAT_BIND_IP, sizeof(CHAT_BIND_IP));
+	CHAT_BIND_IP_SIZE = eNUM_BUF;
+	CHAT_BIND_PORT = NULL;
+
+	ZeroMemory(&MONITOR_BIND_IP, sizeof(MONITOR_BIND_IP));
+	MONITOR_BIND_IP_SIZE = eNUM_BUF;
+	MONITOR_BIND_PORT = NULL;
 
 	WORKER_THREAD = NULL;
 	SERVER_TIMEOUT = NULL;
@@ -46,11 +54,11 @@ bool CConfig::Set()
 		return false;
 	_Parse.GetValue("MASTERTOKEN", &MASTERTOKEN[0], &MASTERTOKEN_SIZE);
 
-	res = _Parse.GetValue("MATCH_BIND_IP", &IP[0], &MATCH_BIND_IP_SIZE);
+	res = _Parse.GetValue("CHAT_BIND_IP", &IP[0], &CHAT_BIND_IP_SIZE);
 	if (false == res)
 		return false;
-	_Parse.UTF8toUTF16(IP, MATCH_BIND_IP, sizeof(MATCH_BIND_IP));
-	res = _Parse.GetValue("MATCH_BIND_PORT", &MATCH_BIND_PORT);
+	_Parse.UTF8toUTF16(IP, CHAT_BIND_IP, sizeof(CHAT_BIND_IP));
+	res = _Parse.GetValue("CHAT_BIND_PORT", &CHAT_BIND_PORT);
 	if (false == res)
 		return false;
 	_Parse.GetValue("BATTLE_BIND_PORT", &IP[0], &BATTLE_BIND_IP_SIZE);

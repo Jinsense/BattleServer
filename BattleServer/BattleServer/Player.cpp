@@ -101,19 +101,8 @@ void CPlayer::OnGame_Packet(CPacket *pPacket)
 
 	switch (Type)
 	{
-	case en_PACKET_CS_GAME_REQ_ECHO:
-	{
-		LONGLONG SendTick;
-		*pPacket >> _AccountNo >> SendTick;
-
-		CPacket *pNewPacket = CPacket::Alloc();
-		Type = en_PACKET_CS_GAME_RES_ECHO;
-
-		*pNewPacket << Type << _AccountNo << SendTick;
-		SendPacket(pNewPacket);
-		pNewPacket->Free();
-	}
-	break;
+	//	패킷 처리
+		
 	default:
 		wprintf(L"Wrong Packet Type !!\n");
 		g_CrashDump->Crash();

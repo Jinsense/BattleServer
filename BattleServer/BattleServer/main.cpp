@@ -23,7 +23,7 @@ int main()
 		}
 	}
 
-	if (false == Server.Start(Config.BIND_IP, Config.BIND_PORT, Config.WORKER_THREAD, true, Config.PACKET_CODE, Config.PACKET_KEY1, Config.PACKET_KEY2))
+	if (false == Server.Start(Config.BATTLE_BIND_IP, Config.BATTLE_BIND_PORT, Config.WORKER_THREAD, true, Config.PACKET_CODE, Config.PACKET_KEY1, Config.PACKET_KEY2))
 	{
 		{
 			wprintf(L"[Main :: Server Start] Error\n");
