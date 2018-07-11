@@ -9,6 +9,21 @@
 #include "RingBuffer.h"
 #include "LockFreeQueue.h"
 #include "CommonProtocol.h"
+#include "BattleServer.h"
+
+extern CConfig Config;
+
+class CBattleServer;
+
+enum en_RES_LOGIN
+{
+	LOGIN_SUCCESS = 1,
+	CLIENT_ERROR = 2,
+	SESSIONKEY_ERROR = 3,
+	VER_ERROR = 5,
+	OVERLAPP_LOGIN = 6
+};
+
 
 typedef struct CLIENT_CONNECT_INFO
 {
@@ -56,6 +71,7 @@ public:
 	virtual void OnGame_Packet(CPacket *pPacket) = 0;
 	virtual void OnGame_ClientRelease() = 0;
 
+	void	Set(CBattleServer *pBattleServer);
 	void	SendPacket(CPacket *pPacket);
 	void	Disconnect();
 
@@ -91,6 +107,7 @@ public:
 	bool	_AuthToGameFlag;
 
 	CSystemLog	*_pLog;
+	CBattleServer *_pBattleServer;
 
 };
 

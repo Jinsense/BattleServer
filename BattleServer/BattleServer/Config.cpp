@@ -27,6 +27,8 @@ CConfig::CConfig()
 	WORKER_THREAD = NULL;
 	SERVER_TIMEOUT = NULL;
 	CLIENT_MAX = NULL;
+	AUTH_MAX = NULL;
+	GAME_MAX = NULL;
 	PACKET_CODE = NULL;
 	PACKET_KEY1 = NULL;
 	PACKET_KEY2 = NULL;
@@ -73,6 +75,8 @@ bool CConfig::Set()
 		return false;
 	_Parse.GetValue("USER_TIMEOUT", &SERVER_TIMEOUT);
 	_Parse.GetValue("CLIENT_MAX", &CLIENT_MAX);
+	_Parse.GetValue("AUTH_MAX", &AUTH_MAX);
+	_Parse.GetValue("GAME_MAX", &GAME_MAX);
 	_Parse.GetValue("PACKET_CODE", &PACKET_CODE);
 	_Parse.GetValue("PACKET_KEY1", &PACKET_KEY1);
 	_Parse.GetValue("PACKET_KEY2", &PACKET_KEY2);

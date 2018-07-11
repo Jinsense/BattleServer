@@ -266,14 +266,14 @@ void CLanClient::CompleteRecv(DWORD dwTransfered)
 
 	while (LANCLIENT_HEADERSIZE == m_Session->RecvQ.Peek((char*)&_wPayloadSize, LANCLIENT_HEADERSIZE))
 	{
-		CPacket *_pPacket = CPacket::Alloc();
 		if (m_Session->RecvQ.GetUseSize() < LANCLIENT_HEADERSIZE + _wPayloadSize)
 			break;
 
 		m_Session->RecvQ.Dequeue(LANCLIENT_HEADERSIZE);
-
+		CPacket *_pPacket = CPacket::Alloc();
 		if (_pPacket->GetFreeSize() < _wPayloadSize)
 		{
+			_pPacket->Free();
 			Disconnect();
 			return;
 		}

@@ -31,6 +31,12 @@ CNetSession::~CNetSession()
 	}
 }
 
+void CNetSession::Set(CBattleServer *pBattleServer)
+{
+	_pBattleServer = pBattleServer;
+	return;
+}
+
 void CNetSession::SendPacket(CPacket *pPacket)
 {
 	pPacket->AddRef();

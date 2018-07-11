@@ -43,6 +43,8 @@ public:
 	int GAME;
 	int SERVER_TIMEOUT;
 	int CLIENT_MAX;
+	int AUTH_MAX;
+	int GAME_MAX;
 	char MASTERTOKEN[32];
 	int MASTERTOKEN_SIZE;
 	int PACKET_CODE;

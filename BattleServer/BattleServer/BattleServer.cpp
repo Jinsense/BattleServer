@@ -35,6 +35,7 @@ CBattleServer::CBattleServer(int iMaxSession, int iSend, int iAuth, int iGame) :
 	_pSessionArray = new CNetSession*[_iMaxSession];
 	_pMemoryPool_ConnectInfo = new CMemoryPool<CLIENT_CONNECT_INFO>();
 	InitializeSRWLock(&_Srwlock);
+	InitializeSRWLock(&_AccountNoMap_srwlock);
 	CPacket::MemoryPoolInit();
 	_pLog = _pLog->GetInstance();
 
@@ -134,6 +135,7 @@ bool CBattleServer::Stop()
 void CBattleServer::SetSessionArray(int iArrayIndex, CNetSession *pSession)
 {
 	_pSessionArray[iArrayIndex] = pSession;
+	_pSessionArray[iArrayIndex]->Set(this);
 	return;
 }
 
@@ -722,7 +724,7 @@ bool CBattleServer::AuthThread_update()
 
 		while (_AccpetSocketQueue.GetUseSize())
 //		while(_AccpetSocketQueue.GetUseCount())
-//		while (Count < AUTH_MAX)
+//		while (Count < Config.AUTH_MAX)
 		{
 //			if (0 != _AccpetSocketQueue.GetUseCount())
 			{
@@ -738,7 +740,7 @@ bool CBattleServer::AuthThread_update()
 			{
 //				Count = 0;
 				while (0 != pSession->_CompleteRecvPacket.GetUseCount())
-//				while (Count < AUTH_MAX)
+//				while (Count < Config.AUTH_MAX)
 				{
 //					if (0 == pSession->_CompleteRecvPacket.GetUseCount())
 //						break;
@@ -780,7 +782,7 @@ bool CBattleServer::GameUpdateThread_update()
 			{
 //				Count = 0;
 				while (0 != pSession->_CompleteRecvPacket.GetUseCount())
-//				while (Count < GAME_MAX)
+//				while (Count < Config.GAME_MAX)
 				{
 //					if (0 == pSession->_CompleteRecvPacket.GetUseCount())
 //						break;

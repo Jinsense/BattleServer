@@ -4,6 +4,8 @@
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "winmm.lib")
 
+#include <map>
+
 #include "Packet.h"
 #include "RingBuffer.h"
 #include "MemoryPool.h"
@@ -15,8 +17,6 @@
 
 #define		WORKER_THREAD_MAX		10
 #define		WSABUF_MAX				100
-#define		AUTH_MAX				5
-#define		GAME_MAX				3
 #define		RELEASE_MAX				100
 
 extern CConfig Config;
@@ -186,10 +186,10 @@ private:
 
 	//	Send ºÎ
 	HANDLE	_hSendThread;
-
+public:
 	CNetSession	**_pSessionArray;
 	SRWLOCK		_Srwlock;
-public:
+
 	long long	_Monitor_AcceptTotal;			//	Accept ÃÑ È½¼ö
 	long		_Monitor_AcceptSocket;			//	1ÃÊ ´ç Accept È½¼ö
 	long		_Monitor_SessionAllMode;		//	ÀüÃ¼ Á¢¼ÓÀÚ ¼ö
@@ -221,8 +221,8 @@ public:
 	long		_Monitor_NetworkSendBytes[100] = { 0, };
 
 	CSystemLog	*_pLog;
-
-	
+	std::map<INT64, CNetSession>	_AccountNoMap;
+	SRWLOCK				_AccountNoMap_srwlock;
 };
 
 #endif

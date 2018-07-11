@@ -3,6 +3,8 @@
 
 #include <Pdh.h>
 
+#include "../json/json.h"
+#include "../WinHttpClient/Common/Include/WinHttpClient.h"
 #include "CommonProtocol.h"
 #include "CpuUsage.h"
 #include "EtherNet_PDH.h"

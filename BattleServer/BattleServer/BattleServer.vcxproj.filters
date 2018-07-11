@@ -49,6 +49,9 @@
     <Filter Include="BattleServer\Player">
       <UniqueIdentifier>{31957b5c-f8aa-4049-a430-cdcd1760d062}</UniqueIdentifier>
     </Filter>
+    <Filter Include="LIB\Json/Http">
+      <UniqueIdentifier>{0a5f7687-2624-420c-9cf6-f6301fce1f63}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -93,6 +96,9 @@
     </ClCompile>
     <ClCompile Include="BattleServer.cpp">
       <Filter>BattleServer\Server</Filter>
+    </ClCompile>
+    <ClCompile Include="..\json\jsoncpp.cpp">
+      <Filter>LIB\Json/Http</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -149,6 +155,12 @@
     </ClInclude>
     <ClInclude Include="BattleServer.h">
       <Filter>BattleServer\Server</Filter>
+    </ClInclude>
+    <ClInclude Include="..\json\json.h">
+      <Filter>LIB\Json/Http</Filter>
+    </ClInclude>
+    <ClInclude Include="..\json\json-forwards.h">
+      <Filter>LIB\Json/Http</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
