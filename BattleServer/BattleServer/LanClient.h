@@ -47,7 +47,7 @@ public:
 	bool IsConnect();
 	bool SendPacket(CPacket *pPacket);
 
-	void Constructor(CGameServer *pMatch);
+	void Constructor(CGameServer *pGameServer);
 
 	void OnEnterJoinServer();		//	서버와의 연결 성공 후
 	void OnLeaveServer();			//	서버와의 연결이 끊어졌을 때
@@ -89,7 +89,7 @@ private:
 	HANDLE					m_hIOCP;
 	HANDLE					m_hWorker_Thread[LANCLIENT_WORKERTHREAD];
 
-	CGameServer *			_pMasterServer;
+	CGameServer *			_pGameServer;
 
 };
 

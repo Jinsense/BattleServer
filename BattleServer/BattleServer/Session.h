@@ -4,6 +4,8 @@
 #include <Windows.h>
 #include <iostream>
 
+#include "../json/json.h"
+#include "../WinHttpClient/Common/Include/WinHttpClient.h"
 #include "Log.h"
 #include "Packet.h"
 #include "RingBuffer.h"
@@ -72,6 +74,7 @@ public:
 	virtual void OnGame_ClientRelease() = 0;
 
 	void	Set(CBattleServer *pBattleServer);
+	bool	Find_AccountNo(INT64 AccountNO);
 	void	SendPacket(CPacket *pPacket);
 	void	Disconnect();
 

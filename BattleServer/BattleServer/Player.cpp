@@ -2,10 +2,14 @@
 
 CPlayer::CPlayer()
 {
-
 	_AccountNo = NULL;
 	ZeroMemory(&_SessionKey, sizeof(_SessionKey));
 	_Version = NULL;
+	_Playtime = NULL;
+	_Playcount = NULL;
+	_Kill = NULL;
+	_Die = NULL;
+	_Win = NULL;
 }
 
 CPlayer::~CPlayer()
@@ -76,37 +80,132 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			newPacket->Free();
 			return;
 		}
-		bool Find = false;
-		//	중복 로그인인지 AccountNo 체크 - Map 검색 후 Map 추가
-		AcquireSRWLockExclusive(&_pBattleServer->_AccountNoMap_srwlock);
-		if (_pBattleServer->_AccountNoMap.end() == _pBattleServer->_AccountNoMap.find(_AccountNo))
+		//	중복 로그인 검사
+		if (true == Find_AccountNo(_AccountNo))
 		{
-			//	Not Found
-			Find = false;
-		}
-		else
-		{
-			//	Found - 중복 로그인
-			Find = true;
-		}
-		ReleaseSRWLockExclusive(&_pBattleServer->_AccountNoMap_srwlock);
-		if (false == Find)
-		{
-			_pBattleServer->_AccountNoMap.insert(std::make_pair(_AccountNo, _pBattleServer->_pSessionArray[_iArrayIndex]));
-		}
-		else
-		{
-			
-		}
+			//	중복로그인 패킷 전송
+			//	기존 로그인 유저는 함수 내부에서 LogoutFlag 변경 처리
+			CPacket *newPacket = CPacket::Alloc();
+			Type = en_PACKET_CS_GAME_RES_LOGIN;
+			BYTE Result = OVERLAPP_LOGIN;
+			*newPacket << Type << _AccountNo << Result;
+			SendPacket(newPacket);
+			newPacket->Free();
+			return;
+		}		
+		//-------------------------------------------------------------
 		//	JSON 데이터 - select_account.php 요청 - 세션키 비교
+		//-------------------------------------------------------------
+		//	Set Post Data
+		Json::Value PostData;
+		Json::StyledWriter writer;
+		PostData["accountno"] = _AccountNo;
+		string Data = writer.write(PostData);
+		WinHttpClient HttpClient(Config.APISERVER_SELECT_ACCOUNT);
+		HttpClient.SetAdditionalDataToSend((BYTE*)Data.c_str(), Data.size());
+		//	Set Request Header
+		wchar_t szSize[50] = L"";
+		swprintf_s(szSize, L"%d", Data.size());
+		wstring Headers = L"Content-Length: ";
+		Headers += szSize;
+		Headers += L"\r\nContent-Type: application/x-www-form-urlencoded\r\n";
+		HttpClient.SetAdditionalRequestHeaders(Headers);
+		//	Send HTTP post request
+		HttpClient.SendHttpRequest(L"POST");
+		//	Response wstring -> string convert
+		wstring response = HttpClient.GetResponseContent();
+		string temp;
+		temp.assign(response.begin(), response.end());
+		//	Result Check
+		Json::Reader reader;
+		Json::Value result;
+		bool Res = reader.parse(temp, result);
+		if (!Res)
+		{
+			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
+			CPacket * newPacket = CPacket::Alloc();
+			Type = en_PACKET_CS_GAME_RES_LOGIN;
+			BYTE Status = CLIENT_ERROR;
+			*newPacket << Type << Status;
+			SendPacket(newPacket);
+			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+			return;
+		}
+		int ResNum = result["result"].asInt();
+		if (LOGIN_SUCCESS != ResNum)
+		{
+			BYTE Status = CLIENT_ERROR;
+			CPacket * newPacket = CPacket::Alloc();
+			Type = en_PACKET_CS_GAME_RES_LOGIN;
+			*newPacket << Type << Status;
+			SendPacket(newPacket);
+			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+			return;
+		}
 
-
+		string sessionkey = result["sessionkey"].asCString();
+		if (0 != strncmp(sessionkey.c_str(), _SessionKey, sizeof(_SessionKey)))
+		{
+			//	세션키가 다름 응답 후 끊기
+			CPacket * newPacket = CPacket::Alloc();
+			Type = en_PACKET_CS_GAME_RES_LOGIN;
+			BYTE Status = SESSIONKEY_ERROR;
+			*newPacket << Type << Status;
+			SendPacket(newPacket);
+			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+			return;
+		}
 		//	JSON 데이터 - select_contents.php 요청 - 계정 정보 불러오기
+		HttpClient.UpdateUrl(Config.APISERVER_SELECT_CONTENTS);
+		HttpClient.SetAdditionalDataToSend((BYTE*)Data.c_str(), Data.size());
+		//	Set Request Header
+		wchar_t Size[50] = L"";
+		swprintf_s(Size, L"%d", Data.size());
+		Headers = L"Content-Length: ";
+		Headers += Size;
+		Headers += L"\r\nContent-Type: application/x-www-form-urlencoded\r\n";
+		HttpClient.SetAdditionalRequestHeaders(Headers);
+		//	Send HTTP post request
+		HttpClient.SendHttpRequest(L"POST");
+		//	Response wstring -> string convert
+		response = HttpClient.GetResponseContent();
+		temp.assign(response.begin(), response.end());
 
+		Res = reader.parse(temp, result);
+		if (!Res)
+		{
+			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
+			CPacket * newPacket = CPacket::Alloc();
+			Type = en_PACKET_CS_GAME_RES_LOGIN;
+			BYTE Status = CLIENT_ERROR;
+			*newPacket << Type << Status;
+			SendPacket(newPacket);
+			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+			return;
+		}
+		int ResNum = result["result"].asInt();
+		if (LOGIN_SUCCESS != ResNum)
+		{
+			BYTE Status = CLIENT_ERROR;
+			CPacket * newPacket = CPacket::Alloc();
+			Type = en_PACKET_CS_GAME_RES_LOGIN;
+			*newPacket << Type << Status;
+			SendPacket(newPacket);
+			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+			return;
+		}
+		_Playtime = result["play"].asInt();
+		_Playcount = result["playercount"].asInt();
+		_Kill = result["kill"].asInt();
+		_Die = result["Die"].asInt();
+		_Win = result["Win"].asInt();
 
 		//	성공 패킷 응답
-
-
 //		_AuthToGameFlag = true;
 
 		CPacket *pNewPacket = CPacket::Alloc();
@@ -118,6 +217,34 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 		pNewPacket->Free();
 	}
 	break;
+	//------------------------------------------------------------
+	//	배틀서버 방 입장 요청
+	//	Type	: en_PACKET_CS_GAME_REQ_ENTER_ROOM
+	//	INT64	: AccountNo
+	//	int		: RoomNo
+	//	char	: EnterToken[32]
+	//
+	//	응답	: en_PACKET_CS_GAME_RES_ENTER_ROOM
+	//	INT64	: AccountNo
+	//	int		: RoomNo
+	//	BYTE	: MaxUser
+	//	BYTE	: Result
+	//------------------------------------------------------------
+	case en_PACKET_CS_GAME_REQ_ENTER_ROOM:
+	{
+		//	특정 방 입장 요청
+		//	AccountNo는 버그 감지 및 테스트용
+		//	EnterToken 일치할 경우 입장 허용
+
+		//	방 입장 응답 패킷 전송
+
+		//	정상적으로 입장이 성공할 경우 방에 유저가 추가됨 패킷도 추가 전송
+		//	새로 접속한 클라이언트에게도 패킷을 보내줌
+
+		//	방에 입장 인원이 꽉찼을 경우 마스터 서버로 대기 방 닫힘 패킷 전송
+
+	}
+	break;	
 	default:
 		wprintf(L"Wrong Packet Type !!\n");
 		g_CrashDump->Crash();

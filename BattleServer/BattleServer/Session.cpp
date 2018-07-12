@@ -37,6 +37,32 @@ void CNetSession::Set(CBattleServer *pBattleServer)
 	return;
 }
 
+bool CNetSession::Find_AccountNo(INT64 AccountNo)
+{
+	bool Find = false;
+	std::map<INT64, CNetSession*>::iterator iter;
+	AcquireSRWLockExclusive(&_pBattleServer->_AccountNoMap_srwlock);
+	iter = _pBattleServer->_AccountNoMap.find(AccountNo);
+	if (_pBattleServer->_AccountNoMap.end() == iter)
+	{
+		//	Not Found
+		_pBattleServer->_AccountNoMap.insert(std::make_pair(AccountNo, _pBattleServer->_pSessionArray[_iArrayIndex]));
+		Find = false;
+	}
+	else
+	{
+		//	Found - 중복 로그인
+		//	Map에서 기존 유저 LogoutFlag 변경
+		(*iter).second->Disconnect();
+		Find = true;
+	}
+	ReleaseSRWLockExclusive(&_pBattleServer->_AccountNoMap_srwlock);
+
+	if(true == Find)
+		_pLog->Log(L"OverlapLogin", LOG_SYSTEM, L"Overlap Login - AccountNo %d", AccountNo);
+	return Find;
+}
+
 void CNetSession::SendPacket(CPacket *pPacket)
 {
 	pPacket->AddRef();

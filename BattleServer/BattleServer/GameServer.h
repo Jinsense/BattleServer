@@ -2,9 +2,10 @@
 #define _BATTLESERVER_SERVER_GAMESERVER_H_
 
 #include <Pdh.h>
+#include <iostream>
+#include <string>
+#include <time.h>
 
-#include "../json/json.h"
-#include "../WinHttpClient/Common/Include/WinHttpClient.h"
 #include "CommonProtocol.h"
 #include "CpuUsage.h"
 #include "EtherNet_PDH.h"
@@ -12,6 +13,8 @@
 #include "BattleServer.h"
 
 #pragma comment(lib, "Pdh.lib")
+
+using namespace std;
 
 class CGameServer : public CBattleServer
 {
@@ -53,8 +56,16 @@ public:
 	bool LanMonitorThread_Update();
 	bool MakePacket(BYTE DataType);
 
+private:
+	void NewConnectTokenCreate();
+
 public:
 	CLanClient	*_pMonitor;
+	CLanClient	*_pMaster;
+	char	_OldConnectToken[32];			//	배틀서버 접속 토큰 ( 기존 )
+	char	_CurConnectToken[32];			//	배틀서버 접속 토큰 ( 신규 )
+	__int64 _CreateTokenTick;				//	토큰 신규 발행한 시간
+	int		_BattleServerNo;
 
 	int		_TimeStamp;						//	TimeStamp
 	int		_CPU_Total;						//	CPU 전체 사용율
@@ -89,4 +100,4 @@ private:
 
 };
 
-#endif
+#endif _BATTLESERVER_SERVER_GAMESERVER_H_

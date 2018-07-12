@@ -23,6 +23,11 @@ public:
 	char	_SessionKey[64];
 	int		_Version;
 	//	±âÅ¸ °ÔÀÓ ÄÁÅÙÃ÷µé
+	int		_Playtime;
+	int		_Playcount;
+	int		_Kill;
+	int		_Die;
+	int		_Win;
 };
 
 #endif

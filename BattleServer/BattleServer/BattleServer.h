@@ -221,7 +221,7 @@ public:
 	long		_Monitor_NetworkSendBytes[100] = { 0, };
 
 	CSystemLog	*_pLog;
-	std::map<INT64, CNetSession>	_AccountNoMap;
+	std::map<INT64, CNetSession*>	_AccountNoMap;
 	SRWLOCK				_AccountNoMap_srwlock;
 };
 

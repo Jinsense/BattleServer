@@ -5,11 +5,18 @@
 
 CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBattleServer(iMaxSession, iSend, iAuth, iGame)
 {
+	srand(time(NULL));
+
 	_bMonitor = true;
 	_hMonitorThread = NULL;
 	_pPlayer = new CPlayer[iMaxSession];
 	for (int i = 0; i < iMaxSession; i++)
 		SetSessionArray(i, (CNetSession*)&_pPlayer[i]);
+
+	ZeroMemory(&_OldConnectToken, sizeof(_OldConnectToken));
+	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
+	_CreateTokenTick = NULL;
+	_BattleServerNo = NULL;
 
 	_TimeStamp = NULL;
 	_CPU_Total = NULL;
@@ -30,6 +37,8 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 
 	_pMonitor = new CLanClient;
 	_pMonitor->Constructor(this);
+	_pMaster = new CLanClient;
+	_pMaster->Constructor(this);
 
 	PdhOpenQuery(NULL, NULL, &_CpuQuery);
 	PdhAddCounter(_CpuQuery, L"\\Memory\\Available MBytes", NULL, &_MemoryAvailableMBytes);
@@ -372,7 +381,16 @@ bool CGameServer::MakePacket(BYTE DataType)
 	return true;
 }
 
+void CGameServer::NewConnectTokenCreate()
+{
+	strcpy_s(_OldConnectToken, sizeof(_OldConnectToken), _CurConnectToken);
 
+	for (int i = 0; i < 32; i++)
+		_CurConnectToken[i] = rand() % 26 + 97;
+	_CreateTokenTick = GetTickCount64();
+
+	return;
+}
 
 
 

@@ -25,9 +25,9 @@ CLanClient::~CLanClient()
 	delete m_Session;
 }
 
-void CLanClient::Constructor(CGameServer *pMaster)
+void CLanClient::Constructor(CGameServer *pGameServer)
 {
-	_pMasterServer = pMaster;
+	_pGameServer = pGameServer;
 	return;
 }
 
@@ -36,13 +36,21 @@ void CLanClient::OnEnterJoinServer()
 	//	서버와의 연결 성공 후
 	CPacket *pPacket = CPacket::Alloc();
 
-	WORD Type = en_PACKET_SS_MONITOR_LOGIN;
-	int ServerNo = 2;		//	배틀서버는 2
-
-	*pPacket << Type << ServerNo;
+	WORD Type = en_PACKET_BAT_MAS_REQ_SERVER_ON;
+	char MasterToken[32] = { 0, };
+	memcpy_s(&MasterToken, sizeof(MasterToken), &Config.MASTERTOKEN, sizeof(MasterToken));
+	
+	*pPacket << Type;
+	pPacket->PushData((char*)&Config.BATTLE_BIND_IP, sizeof(Config.BATTLE_BIND_IP));
+	*pPacket << Config.BATTLE_BIND_PORT;
+	pPacket->PushData((char*)&_pGameServer->_CurConnectToken, sizeof(_pGameServer->_CurConnectToken));
+	pPacket->PushData((char*)&MasterToken, sizeof(MasterToken));
+	pPacket->PushData((char*)&Config.CHAT_BIND_IP, sizeof(Config.CHAT_BIND_IP));
+	*pPacket << Config.CHAT_BIND_PORT;
 
 	SendPacket(pPacket);
 	pPacket->Free();
+	m_Session->bConnect = true;
 	return;
 }
 
@@ -55,6 +63,59 @@ void CLanClient::OnLeaveServer()
 
 void CLanClient::OnLanRecv(CPacket *pPacket)
 {
+	//-------------------------------------------------------------
+	//	패킷 처리 - 컨텐츠 처리
+	//-------------------------------------------------------------
+	WORD Type;
+	*pPacket >> Type;
+	//-------------------------------------------------------------
+	//	패킷 처리 - 배틀 서버 켜짐 수신 확인
+	//	Type : en_PACKET_BAT_MAS_RES_SERVER_ON
+	//	int	 : BattleServerNo
+	//-------------------------------------------------------------
+	if (Type == en_PACKET_BAT_MAS_RES_SERVER_ON)
+	{
+		*pPacket >> _pGameServer->_BattleServerNo;
+		return;
+	}
+	//-------------------------------------------------------------
+	//	패킷 처리 - 배틀 서버 연결토큰 재발행 응답
+	//	Type : en_PACKET_BAT_MAS_RES_CONNECT_TOKEN
+	//-------------------------------------------------------------
+	else if (Type == en_PACKET_BAT_MAS_RES_CONNECT_TOKEN)
+	{
+		return;
+	}
+	//-------------------------------------------------------------
+	//	패킷 처리 - 배틀 서버 신규 대기방 생성 응답
+	//	Type : en_PACKET_BAT_MAS_RES_CREATED_ROOM
+	//-------------------------------------------------------------
+	else if (Type == en_PACKET_BAT_MAS_RES_CREATED_ROOM)
+	{
+		int RoomNo = NULL;
+		*pPacket >> RoomNo;
+		
+		//	Map에 있는 RoomNo인지 검사 - 없을 경우 로그 후 방 닫힘 패킷 전송
+		//	혹은 신규 대기방 리스트 생성한 후 해당 리스트에서 방 삭제 ( 없을 경우 로그 및 에러 or 크래쉬 )
+	}
+	//-------------------------------------------------------------
+	//	패킷 처리 - 배틀 서버 대기방 닫힘 확인
+	//	Type : en_PACKET_BAT_MAS_RES_CLOSED_ROOM
+	//-------------------------------------------------------------
+	else if (Type == en_PACKET_BAT_MAS_RES_CLOSED_ROOM)
+	{
+
+		//	배틀 서버 대기방 닫힘 리스트 생성 후 해당 리스트에서 삭제 
+		//	없을 경우 로그 및 에러 혹은 크래쉬
+	}
+	//-------------------------------------------------------------
+	//	패킷 처리 - 배틀 서버 대기방 유저 나감 확인
+	//	Type : en_PACKET_BAT_MAS_RES_LEFT_USER
+	//-------------------------------------------------------------
+	else if (Type == en_PACKET_BAT_MAS_RES_LEFT_USER)
+	{
+
+	}
 
 	return;
 }
@@ -342,7 +403,7 @@ void CLanClient::StartRecvPost()
 		{
 			if (0 != InterlockedDecrement(&m_Session->IO_Count))
 			{
-				_pMasterServer->_pLog->Log(L"Error", LOG_SYSTEM, L"Recv SocketError - Code %d", lastError);
+				_pGameServer->_pLog->Log(L"Error", LOG_SYSTEM, L"Recv SocketError - Code %d", lastError);
 				shutdown(m_Session->sock, SD_BOTH);
 			}
 			//			Disconnect();
@@ -392,7 +453,7 @@ void CLanClient::RecvPost()
 		{
 			if (0 != InterlockedDecrement(&m_Session->IO_Count))
 			{
-				_pMasterServer->_pLog->Log(L"shutdown", LOG_SYSTEM, L"LanClient Recv SocketError - Code %d", lastError);
+				_pGameServer->_pLog->Log(L"shutdown", LOG_SYSTEM, L"LanClient Recv SocketError - Code %d", lastError);
 				shutdown(m_Session->sock, SD_BOTH);
 			}
 			//			Disconnect();
@@ -463,7 +524,7 @@ void CLanClient::SendPost()
 			{
 				if (0 != InterlockedDecrement(&m_Session->IO_Count))
 				{
-					_pMasterServer->_pLog->Log(L"shutdown", LOG_SYSTEM, L"LanClient Send SocketError - Code %d", lastError);
+					_pGameServer->_pLog->Log(L"shutdown", LOG_SYSTEM, L"LanClient Send SocketError - Code %d", lastError);
 					shutdown(m_Session->sock, SD_BOTH);
 				}
 				//				Disconnect();
