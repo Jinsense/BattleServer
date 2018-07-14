@@ -6,7 +6,8 @@
 CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBattleServer(iMaxSession, iSend, iAuth, iGame)
 {
 	srand(time(NULL));
-
+	InitializeSRWLock(&_BattleRoom_lock);
+	_BattleRoomPool = new CMemoryPool<BATTLEROOM>();
 	_bMonitor = true;
 	_hMonitorThread = NULL;
 	_pPlayer = new CPlayer[iMaxSession];
@@ -17,6 +18,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
 	_CreateTokenTick = NULL;
 	_BattleServerNo = NULL;
+	_RoomCnt = 1;
 
 	_TimeStamp = NULL;
 	_CPU_Total = NULL;
@@ -60,17 +62,58 @@ void CGameServer::OnConnectionRequest()
 
 void CGameServer::OnAuth_Update()
 {
+	//-----------------------------------------------------------
 	//	클라이언트의 요청(패킷수신)외에 기본적으로 항시
 	//	처리되어야 할 컨텐츠 부분 로직
+	//-----------------------------------------------------------
 	
+	//-----------------------------------------------------------
+	//	대기방 갯수 체크 후 Default 값보다 적을 경우
+	//	방을 생성하고 마스터 서버에 통보
+	//	1개 생성 시 패킷 1개 전송
+	//-----------------------------------------------------------
+	while (Config.BATTLEROOM_DEFAULT_NUM > _BattleRoomMap.size())
+	{
+		BATTLEROOM * Room = _BattleRoomPool->Alloc();
+		Room->CurUser = 0;
+		Room->MaxUser = Config.BATTLEROOM_MAX_USER;
+		Room->RoomNo++;
+		Room->ReadyCount = NULL;
+		Room->RoomReady = false;
+		Room->GameReady = false;
+		AcquireSRWLockExclusive(&_BattleRoom_lock);
+		_BattleRoomMap.insert(make_pair(Room->RoomNo, Room));
+		ReleaseSRWLockExclusive(&_BattleRoom_lock);
+		CPacket *pPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_BAT_MAS_REQ_CREATED_ROOM;
+		*pPacket << Type << _BattleServerNo << Room->RoomNo << Room->MaxUser;
+		pPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
+		_pMaster->SendPacket(pPacket);
+		pPacket->Free();
+	}
+	//-----------------------------------------------------------
+	//	대기방 준비완료 플래그를 검사하여 플래그가 TRUE인 방을 
+	//	게임 시작준비 방 전환 플래그 변경 및 변경시간 Count 변수에 저장
+	//	방에 있는 모든 인원에게 대기방 플레이 준비 패킷 전송
+	//-----------------------------------------------------------
+
+	//-----------------------------------------------------------
+	//	준비 방 중에서 (플레이 준비 플래그 - TRUE ) 변경 시간이 Config에서 얻어온
+	//	준비시간보다 클 경우 해당 방의 모든 인원에게 플레이 시작 패킷 전송 후
+	//	게임 모드로 전환
+	//-----------------------------------------------------------
+
+
 	return;
 }
 
 void CGameServer::OnGame_Update()
 {
+	//-----------------------------------------------------------
 	//	GAME 모드의 Update 처리
 	//	클라이언트의 요청 (패킷수신) 외에 기본적으로 항시
 	//	처리되어야 할 게임 컨텐츠 부분 로직
+	//-----------------------------------------------------------
 
 	return;
 }
@@ -389,6 +432,33 @@ void CGameServer::NewConnectTokenCreate()
 		_CurConnectToken[i] = rand() % 26 + 97;
 	_CreateTokenTick = GetTickCount64();
 
+	return;
+}
+
+void CGameServer::LanMasterCheckThead_Update()
+{
+	//-------------------------------------------------------------
+	//	마스터 서버 연결 주기적으로 확인
+	//	ConnectToken 재발행 담당
+	//-------------------------------------------------------------
+	UINT64 start = GetTickCount64();
+	UINT64 now = NULL;
+	while (1)
+	{
+		Sleep(5000);
+		now = GetTickCount64();
+		if (now - start > Config.CONNECTTOKEN_RECREATE)
+		{
+			NewConnectTokenCreate();
+			start = now;
+		}
+
+		if (false == _pMaster->IsConnect())
+		{
+			_pMaster->Connect(Config.MASTER_BIND_IP, Config.MASTER_BIND_PORT, true, LANCLIENT_WORKERTHREAD);
+			continue;
+		}
+	}
 	return;
 }
 

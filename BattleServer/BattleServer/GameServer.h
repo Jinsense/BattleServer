@@ -16,6 +16,23 @@
 
 using namespace std;
 
+typedef struct st_RoomPlayerInfo
+{
+	UINT64 AccountNo;
+	UINT64 ClientKey;
+}RoomPlayerInfo;
+
+typedef struct st_BattleRoom
+{
+	int RoomNo;			//	방 번호
+	int MaxUser;		//	최대 유저
+	int CurUser;		//	현재 유저
+	std::vector<RoomPlayerInfo> RoomPlayer;		//	방에 있는 유저 목록
+	__int64 ReadyCount;	//	대기방 준비완료 시간
+	bool RoomReady;		//	대기방 준비완료 플래그
+	bool GameReady;		//	게임준비 완료 플래그
+}BATTLEROOM;
+
 class CGameServer : public CBattleServer
 {
 public:
@@ -53,8 +70,25 @@ public:
 		pLanMonitorThread->LanMonitorThread_Update();
 		return true;
 	}
-	bool LanMonitorThread_Update();
-	bool MakePacket(BYTE DataType);
+
+	//-----------------------------------------------------------
+	//	마스터 서버 연결 체크
+	//-----------------------------------------------------------
+	static unsigned int WINAPI LanMasterCheckThread(LPVOID arg)
+	{
+		CGameServer *_pLanMasterCheckThread = (CGameServer *)arg;
+		if (NULL == _pLanMasterCheckThread)
+		{
+			std::wprintf(L"[Server :: LanMonitoringThread] Init Error\n");
+			return false;
+		}
+		_pLanMasterCheckThread->LanMasterCheckThead_Update();
+		return true;
+	}
+
+	bool	LanMonitorThread_Update();
+	bool	MakePacket(BYTE DataType);
+	void	LanMasterCheckThead_Update();
 
 private:
 	void NewConnectTokenCreate();
@@ -62,6 +96,11 @@ private:
 public:
 	CLanClient	*_pMonitor;
 	CLanClient	*_pMaster;
+	std::map<int, BATTLEROOM*> _BattleRoomMap;
+	SRWLOCK		_BattleRoom_lock;
+	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
+
+	int		_RoomCnt;
 	char	_OldConnectToken[32];			//	배틀서버 접속 토큰 ( 기존 )
 	char	_CurConnectToken[32];			//	배틀서버 접속 토큰 ( 신규 )
 	__int64 _CreateTokenTick;				//	토큰 신규 발행한 시간
