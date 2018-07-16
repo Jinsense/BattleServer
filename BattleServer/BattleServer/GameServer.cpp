@@ -81,6 +81,7 @@ void CGameServer::OnAuth_Update()
 		Room->ReadyCount = NULL;
 		Room->RoomReady = false;
 		Room->GameReady = false;
+		Room->GameStart = false;
 		AcquireSRWLockExclusive(&_BattleRoom_lock);
 		_BattleRoomMap.insert(make_pair(Room->RoomNo, Room));
 		ReleaseSRWLockExclusive(&_BattleRoom_lock);
@@ -96,14 +97,55 @@ void CGameServer::OnAuth_Update()
 	//	게임 시작준비 방 전환 플래그 변경 및 변경시간 Count 변수에 저장
 	//	방에 있는 모든 인원에게 대기방 플레이 준비 패킷 전송
 	//-----------------------------------------------------------
-
+	AcquireSRWLockExclusive(&_BattleRoom_lock);
+	for (auto i = _BattleRoomMap.begin(); i != _BattleRoomMap.end(); i++)
+	{
+		if (true == (*i).second->RoomReady)
+		{
+			(*i).second->GameReady = true;
+			(*i).second->ReadyCount = GetTickCount64();
+			CPacket * pPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_CS_GAME_RES_PLAY_READY;
+			BYTE ReadySec = Config.BATTLEROOM_READYSEC;
+			*pPacket >> Type >> (*i).second->RoomNo >> ReadySec;
+			pPacket->AddRef();
+			for (auto j = (*i).second->RoomPlayer.begin(); j != (*i).second->RoomPlayer.end(); j++)
+			{
+				_pSessionArray[(*j).Index]->SendPacket(pPacket);
+				pPacket->Free();
+			}
+			pPacket->Free();
+			continue;
+		}
+	}
+	ReleaseSRWLockExclusive(&_BattleRoom_lock);
 	//-----------------------------------------------------------
 	//	준비 방 중에서 (플레이 준비 플래그 - TRUE ) 변경 시간이 Config에서 얻어온
 	//	준비시간보다 클 경우 해당 방의 모든 인원에게 플레이 시작 패킷 전송 후
 	//	게임 모드로 전환
 	//-----------------------------------------------------------
-
-
+	__int64 now = GetTickCount64();
+	AcquireSRWLockExclusive(&_BattleRoom_lock);
+	for (auto i = _BattleRoomMap.begin(); i != _BattleRoomMap.end(); i++)
+	{
+		if (false == (*i).second->GameStart && true == (*i).second->GameReady && now - (*i).second->ReadyCount > (Config.BATTLEROOM_READYSEC * 1000))
+		{
+			(*i).second->GameStart = true;
+			CPacket * pPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_CS_GAME_RES_PLAY_START;
+			*pPacket >> Type >> (*i).second->RoomNo;
+			pPacket->AddRef();
+			for (auto j = (*i).second->RoomPlayer.begin(); j != (*i).second->RoomPlayer.end(); j++)
+			{
+				_pSessionArray[(*j).Index]->_AuthToGameFlag = true;
+				_pSessionArray[(*j).Index]->SendPacket(pPacket);
+				pPacket->Free();
+			}
+			pPacket->Free();
+			continue;
+		}
+	}
+	ReleaseSRWLockExclusive(&_BattleRoom_lock);
 	return;
 }
 
@@ -122,6 +164,43 @@ void CGameServer::OnError(int iErrorCode, WCHAR *szError)
 {
 
 	return;
+}
+
+void CGameServer::OnRoomLeavePlayer(int RoomNo, INT64 AccountNo)
+{
+	std::map<int, BATTLEROOM*>::iterator iter;
+	AcquireSRWLockExclusive(&_BattleRoom_lock);
+	iter = _BattleRoomMap.find(RoomNo);
+	//	대기방이 준비완료 플래그인지 검사
+	if (_BattleRoomMap.end() == iter)
+		return;
+	else
+	{
+		if (false == (*iter).second->RoomReady)
+		{
+			//	마스터 서버로 배틀 서버의 대기방에서 유저가 나감 패킷 전송
+			CPacket *pPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_BAT_MAS_REQ_LEFT_USER;
+			*pPacket >> Type >> RoomNo >> AccountNo;
+			_pMaster->SendPacket(pPacket);
+			pPacket->Free();
+			//	해당 방의 유저들에게 해당 플레이어 방에서 나감 패킷 전송
+			CPacket *newPacket = CPacket::Alloc();
+			Type = en_PACKET_CS_GAME_RES_REMOVE_USER;
+			*newPacket >> Type >> RoomNo >> AccountNo;
+			newPacket->AddRef();
+			for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
+			{
+				if (AccountNo == (*j).AccountNo)
+					continue;
+				_pSessionArray[(*j).Index]->SendPacket(newPacket);
+				newPacket->Free();
+			}
+			newPacket->Free();
+		}
+	}
+	
+	ReleaseSRWLockExclusive(&_BattleRoom_lock);
 }
 
 bool CGameServer::MonitorInit()

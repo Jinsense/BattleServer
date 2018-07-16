@@ -14,7 +14,7 @@ CLanClient::CLanClient() :
 {
 	m_Session = new LANCLIENTSESSION;
 
-
+	m_Reconnect = false;
 	setlocale(LC_ALL, "Korean");
 
 	m_hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
@@ -58,6 +58,8 @@ void CLanClient::OnLeaveServer()
 {
 	//	서버와의 연결이 끊어졌을 때
 	m_Session->bConnect = false;
+	m_Reconnect = true;
+
 	return;
 }
 

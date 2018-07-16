@@ -89,6 +89,8 @@ public:
 
 	en_SESSION_MODE	_Mode;		//	세션의 상태모드
 	int		_iArrayIndex;		//	Session 배열의 자기 인덱스
+	int		_RoomNo;
+	INT64	_AccountNo;
 
 	CLIENT_CONNECT_INFO _ClientInfo;
 	OVERLAPPED	_SendOver;

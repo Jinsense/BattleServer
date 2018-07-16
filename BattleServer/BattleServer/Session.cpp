@@ -6,6 +6,7 @@ CNetSession::CNetSession() : _RecvQ(BUF), _SendQ(BUF), _CompleteSendPacket(BUF)
 {
 	_Mode = MODE_NONE;
 	_iArrayIndex = NULL;
+	_RoomNo = NULL;
 	_RecvQ.Clear();
 	_SendQ.Clear();
 	_iSendPacketCnt = NULL;
@@ -14,6 +15,7 @@ CNetSession::CNetSession() : _RecvQ(BUF), _SendQ(BUF), _CompleteSendPacket(BUF)
 	_IOCount = NULL;
 	_LogOutFlag = false;
 	_AuthToGameFlag = false;
+	_AccountNo = NULL;
 
 	_pLog->GetInstance();
 }

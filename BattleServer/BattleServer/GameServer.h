@@ -19,7 +19,7 @@ using namespace std;
 typedef struct st_RoomPlayerInfo
 {
 	UINT64 AccountNo;
-	UINT64 ClientKey;
+	int  Index;
 }RoomPlayerInfo;
 
 typedef struct st_BattleRoom
@@ -31,6 +31,7 @@ typedef struct st_BattleRoom
 	__int64 ReadyCount;	//	대기방 준비완료 시간
 	bool RoomReady;		//	대기방 준비완료 플래그
 	bool GameReady;		//	게임준비 완료 플래그
+	bool GameStart;     //  게임모드 전환 여부
 }BATTLEROOM;
 
 class CGameServer : public CBattleServer
@@ -43,6 +44,7 @@ public:
 	void OnAuth_Update();
 	void OnGame_Update();
 	void OnError(int iErrorCode, WCHAR *szError);
+	void OnRoomLeavePlayer(int RoomNo, INT64 AccountNo);
 
 	bool MonitorInit();
 	bool MonitorOnOff();

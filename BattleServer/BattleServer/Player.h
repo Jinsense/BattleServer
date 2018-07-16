@@ -19,7 +19,6 @@ public:
 
 	
 public:
-	INT64	_AccountNo;
 	char	_SessionKey[64];
 	int		_Version;
 	//	기타 게임 컨텐츠들

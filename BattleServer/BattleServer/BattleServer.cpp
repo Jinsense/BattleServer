@@ -533,6 +533,11 @@ void CBattleServer::ProcAuth_LogoutInAuth()
 		{
 			pSession->_Mode = CNetSession::MODE_LOGOUT_IN_AUTH;
 			_Monitor_SessionAuthMode--;
+			//	대기방에 접속해 있는 유저인지 검사
+			if (NULL != pSession->_RoomNo)
+			{
+				OnRoomLeavePlayer(pSession->_RoomNo, );
+			}
 		}
 	}
 	return;

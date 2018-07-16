@@ -235,6 +235,9 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 		//	특정 방 입장 요청
 		//	AccountNo는 버그 감지 및 테스트용
 		//	EnterToken 일치할 경우 입장 허용
+		//	_RoomNo에 방 번호와 RoomPlayer 구조체에 Session Index번호 지정
+		//	GameServer.cpp에서 패킷을 보내려면 Index번호가 필요함
+
 
 		//	방 입장 응답 패킷 전송
 

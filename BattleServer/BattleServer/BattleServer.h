@@ -144,6 +144,7 @@ private:
 	virtual void OnGame_Update() = 0;
 
 	virtual void OnError(int iErrorCode, WCHAR *szError) = 0;
+	virtual void OnRoomLeavePlayer(int RoomNo, INT64 AccountNo) = 0;
 
 public:
 	const int _iMaxSession;
