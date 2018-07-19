@@ -39,6 +39,10 @@ CBattleServer::CBattleServer(int iMaxSession, int iSend, int iAuth, int iGame) :
 	CPacket::MemoryPoolInit();
 	_pLog = _pLog->GetInstance();
 
+	ZeroMemory(&_OldConnectToken, sizeof(_OldConnectToken));
+	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
+	_CreateTokenTick = NULL;
+
 	_Monitor_AcceptTotal = NULL;
 	_Monitor_AcceptSocket = NULL;
 	_Monitor_SessionAllMode = NULL;
@@ -536,7 +540,7 @@ void CBattleServer::ProcAuth_LogoutInAuth()
 			//	대기방에 접속해 있는 유저인지 검사
 			if (NULL != pSession->_RoomNo)
 			{
-				OnRoomLeavePlayer(pSession->_RoomNo, );
+				OnRoomLeavePlayer(pSession->_RoomNo, pSession->_AccountNo);
 			}
 		}
 	}

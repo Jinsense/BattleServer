@@ -78,6 +78,26 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 	if (Type == en_PACKET_BAT_MAS_RES_SERVER_ON)
 	{
 		*pPacket >> _pGameServer->_BattleServerNo;
+		//	마스터 서버 종료로 인한 재연결인지 확인
+		if (true == m_Reconnect)
+		{
+			//	현재 생성된 대기방 리스트를 다시 전송해 준다.
+			//	이때 유저가 있는 방은 MaxUser 수치를 계산해서 전송해준다.
+			AcquireSRWLockExclusive(&_pGameServer->_BattleRoom_lock);
+			for (auto i = _pGameServer->_BattleRoomMap.begin(); i != _pGameServer->_BattleRoomMap.end(); i++)
+			{
+				if (false == (*i).second->RoomReady && 0 > (*i).second->MaxUser - (*i).second->CurUser)
+				{
+					CPacket *pPacket = CPacket::Alloc();
+					WORD Type = en_PACKET_BAT_MAS_REQ_CREATED_ROOM;
+					*pPacket << Type << _pGameServer->_BattleServerNo << (*i).second->RoomNo << ((*i).second->MaxUser - (*i).second->CurUser);
+					SendPacket(pPacket);
+					pPacket->Free();
+				}
+			}
+			ReleaseSRWLockExclusive(&_pGameServer->_BattleRoom_lock);
+		}
+
 		return;
 	}
 	//-------------------------------------------------------------

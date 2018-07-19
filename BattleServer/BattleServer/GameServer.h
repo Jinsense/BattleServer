@@ -16,24 +16,6 @@
 
 using namespace std;
 
-typedef struct st_RoomPlayerInfo
-{
-	UINT64 AccountNo;
-	int  Index;
-}RoomPlayerInfo;
-
-typedef struct st_BattleRoom
-{
-	int RoomNo;			//	방 번호
-	int MaxUser;		//	최대 유저
-	int CurUser;		//	현재 유저
-	std::vector<RoomPlayerInfo> RoomPlayer;		//	방에 있는 유저 목록
-	__int64 ReadyCount;	//	대기방 준비완료 시간
-	bool RoomReady;		//	대기방 준비완료 플래그
-	bool GameReady;		//	게임준비 완료 플래그
-	bool GameStart;     //  게임모드 전환 여부
-}BATTLEROOM;
-
 class CGameServer : public CBattleServer
 {
 public:
@@ -98,14 +80,8 @@ private:
 public:
 	CLanClient	*_pMonitor;
 	CLanClient	*_pMaster;
-	std::map<int, BATTLEROOM*> _BattleRoomMap;
-	SRWLOCK		_BattleRoom_lock;
-	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
 
 	int		_RoomCnt;
-	char	_OldConnectToken[32];			//	배틀서버 접속 토큰 ( 기존 )
-	char	_CurConnectToken[32];			//	배틀서버 접속 토큰 ( 신규 )
-	__int64 _CreateTokenTick;				//	토큰 신규 발행한 시간
 	int		_BattleServerNo;
 
 	int		_TimeStamp;						//	TimeStamp

@@ -14,9 +14,6 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	for (int i = 0; i < iMaxSession; i++)
 		SetSessionArray(i, (CNetSession*)&_pPlayer[i]);
 
-	ZeroMemory(&_OldConnectToken, sizeof(_OldConnectToken));
-	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
-	_CreateTokenTick = NULL;
 	_BattleServerNo = NULL;
 	_RoomCnt = 1;
 
