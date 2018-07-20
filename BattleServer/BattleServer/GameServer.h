@@ -9,7 +9,6 @@
 #include "CommonProtocol.h"
 #include "CpuUsage.h"
 #include "EtherNet_PDH.h"
-#include "LanClient.h"
 #include "BattleServer.h"
 
 #pragma comment(lib, "Pdh.lib")
@@ -79,7 +78,7 @@ private:
 
 public:
 	CLanClient	*_pMonitor;
-	CLanClient	*_pMaster;
+	CLanClient * _pMaster;
 
 	int		_RoomCnt;
 	int		_BattleServerNo;

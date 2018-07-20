@@ -14,6 +14,7 @@
 #include "Player.h"
 #include "Log.h"
 #include "Dump.h"
+#include "LanClient.h"
 
 #define		WORKER_THREAD_MAX		10
 #define		WSABUF_MAX				100

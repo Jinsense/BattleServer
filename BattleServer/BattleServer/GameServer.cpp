@@ -12,7 +12,15 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	_hMonitorThread = NULL;
 	_pPlayer = new CPlayer[iMaxSession];
 	for (int i = 0; i < iMaxSession; i++)
+	{
 		SetSessionArray(i, (CNetSession*)&_pPlayer[i]);
+		_pPlayer->SetGame(this);
+	}
+
+	_pMonitor = new CLanClient;
+	_pMonitor->Constructor(this);
+	_pMaster = new CLanClient;
+	_pMaster->Constructor(this);
 
 	_BattleServerNo = NULL;
 	_RoomCnt = 1;
@@ -33,11 +41,6 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	_BattleServer_Session_ALL = NULL;
 	_BattleServer_Session_Auth = NULL;
 	_BattleServer_Session_Game = NULL;
-
-	_pMonitor = new CLanClient;
-	_pMonitor->Constructor(this);
-	_pMaster = new CLanClient;
-	_pMaster->Constructor(this);
 
 	PdhOpenQuery(NULL, NULL, &_CpuQuery);
 	PdhAddCounter(_CpuQuery, L"\\Memory\\Available MBytes", NULL, &_MemoryAvailableMBytes);

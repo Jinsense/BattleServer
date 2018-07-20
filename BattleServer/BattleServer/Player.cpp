@@ -159,6 +159,12 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			newPacket->Free();
 			return;
 		}
+		//	Nickname 저장 - char로 변환 후 wchar로 저장
+		string Nickname = result["nickname"].asCString();
+		char Temp[20] = { 0 , };
+		strcpy_s(Temp, sizeof(Temp), Nickname.c_str());
+		UTF8toUTF16(Temp, _Nickname, sizeof(Temp));		
+
 		//	JSON 데이터 - select_contents.php 요청 - 계정 정보 불러오기
 		HttpClient.UpdateUrl(Config.APISERVER_SELECT_CONTENTS);
 		HttpClient.SetAdditionalDataToSend((BYTE*)Data.c_str(), Data.size());
@@ -299,6 +305,30 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			newPacket->Free();
 			return;
 		}
+		//	방에 유저가 들어갈 수 있는지 인원수 체크
+		if (0 >= ((*iter).second->MaxUser - (*iter).second->CurUser))
+		{
+			//	들어갈 자리가 없음 패킷 전송
+			CPacket * newPacket = CPacket::Alloc();
+			WORD MaxUser = Config.BATTLEROOM_MAX_USER;
+			WORD Result = ROOMUSER_MAX;
+			Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
+			*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
+			SendPacket(newPacket);
+			newPacket->Free();
+			return;			
+		}
+		(*iter).second->CurUser++;
+		//	방에 입장 인원이 꽉찼을 경우 마스터 서버로 대기 방 닫힘 패킷 전송
+		if ((*iter).second->CurUser == (*iter).second->MaxUser)
+		{
+			CPacket * CloseRoomPacket = CPacket::Alloc();
+			Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
+			*CloseRoomPacket >> Type >> (*iter).second->RoomNo;
+			_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
+			CloseRoomPacket->Free();
+			(*iter).second->RoomReady = true;
+		}
 		//	_RoomNo에 방 번호와 RoomPlayer 구조체에 Session Index번호 지정
 		//	현재는 락을 걸지 않았지만 차후 문제가 생길경우 락을 추가하여 해결하자
 		_RoomNo = RoomNo;
@@ -327,11 +357,7 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			_pBattleServer->_pSessionArray[(*j).Index]->SendPacket(AddPacket);
 			AddPacket->Free();
 		}
-		AddPacket->Free();		
-
-
-		//	방에 입장 인원이 꽉찼을 경우 마스터 서버로 대기 방 닫힘 패킷 전송
-
+		AddPacket->Free();
 	}
 	break;	
 	default:
@@ -390,5 +416,25 @@ void CPlayer::OnGame_ClientRelease()
 
 
 
+	return;
+}
+
+void CPlayer::SetGame(CGameServer * pGameServer)
+{
+	_pGameServer = pGameServer;
+	return;
+}
+
+void CPlayer::UTF8toUTF16(const char *szText, WCHAR *szBuf, int iBufLen)
+{
+	int iRe = MultiByteToWideChar(CP_UTF8, 0, szText, strlen(szText), szBuf, iBufLen);
+	if (iRe < iBufLen)
+		szBuf[iRe] = L'\0';
+	return;
+}
+
+void CPlayer::UTF16toUTF8(WCHAR *szText, char *szBuf, int iBufLen)
+{
+	int iRe = WideCharToMultiByte(CP_UTF8, 0, szText, lstrlenW(szText), szBuf, iBufLen, NULL, NULL);
 	return;
 }
