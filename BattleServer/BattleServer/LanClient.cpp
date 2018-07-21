@@ -3,8 +3,8 @@
 #include <iostream>
 #include <windows.h>
 
-#include "GameServer.h"
 #include "LanClient.h"
+#include "GameServer.h"
 
 using namespace std;
 
@@ -83,8 +83,8 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 		{
 			//	현재 생성된 대기방 리스트를 다시 전송해 준다.
 			//	이때 유저가 있는 방은 MaxUser 수치를 계산해서 전송해준다.
-			AcquireSRWLockExclusive(&_pGameServer->_BattleRoom_lock);
-			for (auto i = _pGameServer->_BattleRoomMap.begin(); i != _pGameServer->_BattleRoomMap.end(); i++)
+			AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+			for (auto i = _pGameServer->_WaitRoomMap.begin(); i != _pGameServer->_WaitRoomMap.end(); i++)
 			{
 				if (false == (*i).second->RoomReady && 0 > (*i).second->MaxUser - (*i).second->CurUser)
 				{
@@ -95,7 +95,7 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 					pPacket->Free();
 				}
 			}
-			ReleaseSRWLockExclusive(&_pGameServer->_BattleRoom_lock);
+			ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 		}
 
 		return;

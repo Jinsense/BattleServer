@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "GameServer.h"
 
 CPlayer::CPlayer()
 {
@@ -253,10 +254,10 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			Disconnect();
 		}
 		//	EnterToken 일치할 경우 입장 허용
-		if (0 != strncmp(EnterToken, _pBattleServer->_CurConnectToken, sizeof(_pBattleServer->_CurConnectToken)))
+		if (0 != strncmp(EnterToken, _pGameServer->_CurConnectToken, sizeof(_pGameServer->_CurConnectToken)))
 		{
 			//	CurToken이 아닐경우 OldToken 검사
-			if (0 != strncmp(EnterToken, _pBattleServer->_OldConnectToken, sizeof(_pBattleServer->_OldConnectToken)))
+			if (0 != strncmp(EnterToken, _pGameServer->_OldConnectToken, sizeof(_pGameServer->_OldConnectToken)))
 			{
 				//	둘다 아닐경우 로그 남기고 EnterToken 다름 패킷 전송
 				CPacket * newPacket = CPacket::Alloc();
@@ -273,13 +274,13 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 		bool NotFind = false;
 		bool NotReadyRoom = false;
 		std::map<int, BATTLEROOM*>::iterator iter;
-		AcquireSRWLockExclusive(&_pBattleServer->_BattleRoom_lock);
-		iter = _pBattleServer->_BattleRoomMap.find(RoomNo);
-		if (iter == _pBattleServer->_BattleRoomMap.end())
+		AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+		iter = _pGameServer->_WaitRoomMap.find(RoomNo);
+		if (iter == _pGameServer->_WaitRoomMap.end())
 			NotFind = true;
 		if (true == (*iter).second->RoomReady)
 			NotReadyRoom = true;
-		ReleaseSRWLockExclusive(&_pBattleServer->_BattleRoom_lock);
+		ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 		//	방이 존재하는지 확인 후 없는 방일 경우 방 없음 패킷 전송
 		if (true == NotFind)
 		{
@@ -325,7 +326,7 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			CPacket * CloseRoomPacket = CPacket::Alloc();
 			Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
 			*CloseRoomPacket >> Type >> (*iter).second->RoomNo;
-			_pMasterServer->SendPacket(CloseRoomPacket);
+			_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
 			CloseRoomPacket->Free();
 			(*iter).second->RoomReady = true;
 		}
@@ -419,9 +420,9 @@ void CPlayer::OnGame_ClientRelease()
 	return;
 }
 
-void CPlayer::SetMaster(CLanClient * pMasterServer)
+void CPlayer::SetGame(CGameServer * pGameServer)
 {
-	_pMasterServer = pMasterServer;
+	_pGameServer = pGameServer;
 	return;
 }
 

@@ -43,10 +43,6 @@ CBattleServer::CBattleServer(int iMaxSession, int iSend, int iAuth, int iGame) :
 	CPacket::MemoryPoolInit();
 	_pLog = _pLog->GetInstance();
 
-	ZeroMemory(&_OldConnectToken, sizeof(_OldConnectToken));
-	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
-	_CreateTokenTick = NULL;
-
 	_Monitor_AcceptTotal = NULL;
 	_Monitor_AcceptSocket = NULL;
 	_Monitor_SessionAllMode = NULL;

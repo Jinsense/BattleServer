@@ -1,7 +1,6 @@
 #ifndef _BATTLESERVER_SERVER_BATTLESERVER_H_
 #define _BATTLESERVER_SERVER_BATTLESERVER_H_
 
-#pragma warning (disable : 4267)
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "winmm.lib")
 
@@ -14,7 +13,7 @@
 #include "LockFreeQueue.h"
 #include "Log.h"
 #include "Dump.h"
-#include "Session.h"
+#include "Player.h"
 
 #define		WORKER_THREAD_MAX		10
 #define		WSABUF_MAX				100
@@ -22,34 +21,7 @@
 
 extern CConfig Config;
 
-enum enENTERROOM_RESULT
-{
-	SUCCESS = 1,
-	ENTERTOKEN_FAIL = 2,
-	NOT_READYROOM = 3,
-	NOT_FINDROOM = 4,
-	ROOMUSER_MAX = 5,
-};
-
-typedef struct st_RoomPlayerInfo
-{
-	UINT64 AccountNo;
-	int  Index;
-}RoomPlayerInfo;
-
-typedef struct st_BattleRoom
-{
-	int RoomNo;			//	방 번호
-	int MaxUser;		//	최대 유저
-	int CurUser;		//	현재 유저
-	std::vector<RoomPlayerInfo> RoomPlayer;		//	방에 있는 유저 목록
-	__int64 ReadyCount;	//	대기방 준비완료 시간
-	bool RoomReady;		//	대기방 준비완료 플래그
-	bool GameReady;		//	게임준비 완료 플래그
-	bool GameStart;     //  게임모드 전환 여부
-}BATTLEROOM;
-
-class CNetSession;
+class CPlayer;
 
 class CBattleServer
 {
@@ -219,13 +191,6 @@ private:
 	//	Send 부
 	HANDLE	_hSendThread;
 public:
-	std::map<int, BATTLEROOM*> _BattleRoomMap;
-	SRWLOCK		_BattleRoom_lock;
-	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
-	char	_OldConnectToken[32];			//	배틀서버 접속 토큰 ( 기존 )
-	char	_CurConnectToken[32];			//	배틀서버 접속 토큰 ( 신규 )
-	__int64 _CreateTokenTick;				//	토큰 신규 발행한 시간
-
 	CNetSession	**_pSessionArray;
 	SRWLOCK		_Srwlock;
 
