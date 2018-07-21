@@ -2,9 +2,9 @@
 #define _BATTLESERVER_SERVER_PLAYER_H_
 
 #include "Session.h"
-#include "GameServer.h"
+#include "LanClient.h"
 
-class CGameServer;
+class CLanClient;
 
 class CPlayer : public CNetSession
 {
@@ -20,7 +20,7 @@ public:
 	void	OnGame_Packet(CPacket *pPacket);
 	void	OnGame_ClientRelease();
 
-	void	SetGame(CGameServer * pGameServer);
+	void	SetMaster(CLanClient * pMasterServer);
 	void	UTF8toUTF16(const char *szText, WCHAR *szBuf, int iBufLen);
 	void	UTF16toUTF8(WCHAR *szText, char *szBuf, int iBufLen);
 	
@@ -35,7 +35,7 @@ public:
 	int		_Die;
 	int		_Win;
 
-	CGameServer * _pGameServer;
+	CLanClient * _pMasterServer;
 };
 
-#endif
+#endif _BATTLESERVER_SERVER_PLAYER_H_

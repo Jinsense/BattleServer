@@ -3,6 +3,11 @@
 
 #include "GameServer.h"
 
+CGameServer::CGameServer()
+{
+
+}
+
 CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBattleServer(iMaxSession, iSend, iAuth, iGame)
 {
 	srand(time(NULL));
@@ -14,7 +19,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	for (int i = 0; i < iMaxSession; i++)
 	{
 		SetSessionArray(i, (CNetSession*)&_pPlayer[i]);
-		_pPlayer->SetGame(this);
+		_pPlayer->SetMaster(_pMaster);
 	}
 
 	_pMonitor = new CLanClient;
@@ -541,7 +546,14 @@ void CGameServer::LanMasterCheckThead_Update()
 	return;
 }
 
-
+void CGameServer::HttpSendThread_Update()
+{
+	//-------------------------------------------------------------
+	//	이벤트로 스레드를 깨운 후 HttpQueue에 있는 데이터 처리
+	//	처리할 데이터가 남아 있을 경우 무한루프 
+	//-------------------------------------------------------------
+	
+}
 
 
 

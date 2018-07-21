@@ -143,4 +143,4 @@ private:
 
 };
 
-#endif
+#endif _BATTLESERVER_LIB_PACKET_H_

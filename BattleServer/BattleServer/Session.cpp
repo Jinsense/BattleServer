@@ -1,6 +1,7 @@
 #include <WinSock2.h>
 
 #include "Session.h"
+#include "BattleServer.h"
 
 CNetSession::CNetSession() : _RecvQ(BUF), _SendQ(BUF), _CompleteSendPacket(BUF)
 {

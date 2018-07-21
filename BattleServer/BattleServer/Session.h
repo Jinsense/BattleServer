@@ -11,11 +11,9 @@
 #include "RingBuffer.h"
 #include "LockFreeQueue.h"
 #include "CommonProtocol.h"
-#include "BattleServer.h"
+//#include "BattleServer.h"
 
 extern CConfig Config;
-
-class CBattleServer;
 
 enum en_RES_LOGIN
 {
@@ -42,6 +40,8 @@ typedef struct CLIENT_CONNECT_INFO
 		Sock = INVALID_SOCKET;
 	}
 }CLIENTINFO;
+
+class CBattleServer;
 
 class CNetSession
 {
@@ -116,4 +116,4 @@ public:
 
 };
 
-#endif
+#endif _BATTLESERVER_SERVER_SESSION_H_

@@ -1,6 +1,7 @@
 #ifndef _BATTLESERVER_SERVER_BATTLESERVER_H_
 #define _BATTLESERVER_SERVER_BATTLESERVER_H_
 
+#pragma warning (disable : 4267)
 #pragma comment(lib, "ws2_32")
 #pragma comment(lib, "winmm.lib")
 
@@ -11,10 +12,9 @@
 #include "MemoryPool.h"
 #include "LockFreeStack.h"
 #include "LockFreeQueue.h"
-#include "Player.h"
 #include "Log.h"
 #include "Dump.h"
-#include "LanClient.h"
+#include "Session.h"
 
 #define		WORKER_THREAD_MAX		10
 #define		WSABUF_MAX				100
@@ -49,9 +49,12 @@ typedef struct st_BattleRoom
 	bool GameStart;     //  게임모드 전환 여부
 }BATTLEROOM;
 
+class CNetSession;
+
 class CBattleServer
 {
 public:
+	CBattleServer();
 	CBattleServer(int iMaxSession, int iSend, int iAuth, int iGame);
 	virtual ~CBattleServer();
 
@@ -175,10 +178,10 @@ private:
 	virtual void OnRoomLeavePlayer(int RoomNo, INT64 AccountNo) = 0;
 
 public:
-	const int _iMaxSession;
-	const int _iSendThread;
-	const int _iAuthThread;
-	const int _iGameThread;
+	int _iMaxSession;
+	int _iSendThread;
+	int _iAuthThread;
+	int _iGameThread;
 	
 protected:
 	bool _bShutdown;
@@ -258,7 +261,7 @@ public:
 
 	CSystemLog	*_pLog;
 	std::map<INT64, CNetSession*>	_AccountNoMap;
-	SRWLOCK				_AccountNoMap_srwlock;
+	SRWLOCK		_AccountNoMap_srwlock;
 };
 
-#endif
+#endif _BATTLESERVER_SERVER_BATTLESERVER_H_

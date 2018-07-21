@@ -194,7 +194,7 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			newPacket->Free();
 			return;
 		}
-		int ResNum = result["result"].asInt();
+		ResNum = result["result"].asInt();
 		if (LOGIN_SUCCESS != ResNum)
 		{
 			BYTE Status = CLIENT_ERROR;
@@ -316,7 +316,7 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
 			SendPacket(newPacket);
 			newPacket->Free();
-			return;			
+			return;	
 		}
 		(*iter).second->CurUser++;
 		//	방에 입장 인원이 꽉찼을 경우 마스터 서버로 대기 방 닫힘 패킷 전송
@@ -325,7 +325,7 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			CPacket * CloseRoomPacket = CPacket::Alloc();
 			Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
 			*CloseRoomPacket >> Type >> (*iter).second->RoomNo;
-			_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
+			_pMasterServer->SendPacket(CloseRoomPacket);
 			CloseRoomPacket->Free();
 			(*iter).second->RoomReady = true;
 		}
@@ -350,8 +350,8 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 		CPacket * AddPacket = CPacket::Alloc();
 		*AddPacket >> _RoomNo >> _AccountNo;
 		AddPacket->PushData((char*)&_Nickname, sizeof(_Nickname));
-		AddPacket->AddRef();
 		*AddPacket >> _Playcount >> _Playtime >> _Kill >> _Die >> _Win;
+		AddPacket->AddRef();
 		for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
 		{
 			_pBattleServer->_pSessionArray[(*j).Index]->SendPacket(AddPacket);
@@ -419,9 +419,9 @@ void CPlayer::OnGame_ClientRelease()
 	return;
 }
 
-void CPlayer::SetGame(CGameServer * pGameServer)
+void CPlayer::SetMaster(CLanClient * pMasterServer)
 {
-	_pGameServer = pGameServer;
+	_pMasterServer = pMasterServer;
 	return;
 }
 

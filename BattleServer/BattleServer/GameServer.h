@@ -10,14 +10,19 @@
 #include "CpuUsage.h"
 #include "EtherNet_PDH.h"
 #include "BattleServer.h"
+#include "Player.h"
+#include "LanClient.h"
 
 #pragma comment(lib, "Pdh.lib")
 
 using namespace std;
 
+class CPlayer;
+
 class CGameServer : public CBattleServer
 {
 public:
+	CGameServer();
 	CGameServer(int iMaxSession, int iSend, int iAuth, int iGame);
 	~CGameServer();
 
@@ -69,15 +74,31 @@ public:
 		return true;
 	}
 
+	//-----------------------------------------------------------
+	//	마스터 서버 연결 체크
+	//-----------------------------------------------------------
+	static unsigned int WINAPI HttpSendThread(LPVOID arg)
+	{
+		CGameServer *_pHttpSendThread = (CGameServer *)arg;
+		if (NULL == _pHttpSendThread)
+		{
+			std::wprintf(L"[Server :: _pHttpSendThread] Init Error\n");
+			return false;
+		}
+		_pHttpSendThread->HttpSendThread_Update();
+		return true;
+	}
+
 	bool	LanMonitorThread_Update();
 	bool	MakePacket(BYTE DataType);
 	void	LanMasterCheckThead_Update();
+	void	HttpSendThread_Update();
 
 private:
 	void NewConnectTokenCreate();
 
 public:
-	CLanClient	*_pMonitor;
+	CLanClient * _pMonitor;
 	CLanClient * _pMaster;
 
 	int		_RoomCnt;

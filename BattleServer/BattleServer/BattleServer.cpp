@@ -12,6 +12,10 @@ using namespace std;
 
 #include "BattleServer.h"
 
+CBattleServer::CBattleServer()
+{
+}
+
 CBattleServer::CBattleServer(int iMaxSession, int iSend, int iAuth, int iGame) : _iMaxSession(iMaxSession), _AccpetSocketQueue(50000), _iSendThread(iSend), _iAuthThread(iAuth), _iGameThread(iGame)
 {
 	timeBeginPeriod(1);

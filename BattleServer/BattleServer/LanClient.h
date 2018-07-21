@@ -94,4 +94,4 @@ private:
 
 };
 
-#endif
+#endif _BATTLESERVER_LIB_LANCLIENT_H_
