@@ -14,8 +14,14 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	InitializeSRWLock(&_WaitRoom_lock);
 	InitializeSRWLock(&_PlayRoom_lock);
 	_BattleRoomPool = new CMemoryPool<BATTLEROOM>();
+	_HttpPool = new CMemoryPool<CRingBuffer>();
 	_bMonitor = true;
 	_hMonitorThread = NULL;
+	_hLanMonitorThread = NULL;
+	_hLanMasterCheckThread = NULL;
+	for (auto i = 0; i < 10; i++)
+		_hHttpSendThread[i] = NULL;
+
 	_pPlayer = new CPlayer[iMaxSession];
 	for (int i = 0; i < iMaxSession; i++)
 	{
@@ -55,12 +61,27 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	PdhAddCounter(_CpuQuery, L"\\Memory\\Pool Nonpaged Bytes", NULL, &_MemoryNonpagedBytes);
 	PdhAddCounter(_CpuQuery, L"\\Process(MMOGameServer)\\Private Bytes", NULL, &_ProcessPrivateBytes);
 	PdhCollectQueryData(_CpuQuery);
+	
+	ThreadInit();
 }
 
 CGameServer::~CGameServer()
 {
 	delete[] _pPlayer;
 }
+
+bool CGameServer::ThreadInit()
+{
+	_hMonitorThread = (HANDLE)_beginthreadex(NULL, 0, &MonitorThread, (LPVOID)this, 0, NULL);
+	_hLanMonitorThread = (HANDLE)_beginthreadex(NULL, 0, &LanMonitorThread, (LPVOID)this, 0, NULL);
+	_hLanMasterCheckThread = (HANDLE)_beginthreadex(NULL, 0, &LanMasterCheckThread, (LPVOID)this, 0, NULL);
+	for (auto i = 0; i < 10; i++)
+		_hHttpSendThread[i] = (HANDLE)_beginthreadex(NULL, 0, &HttpSendThread, (LPVOID)this, 0, NULL);
+	_hHttpEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	
+	return true;
+}
+
 
 void CGameServer::OnConnectionRequest()
 {
@@ -131,13 +152,6 @@ void CGameServer::OnRoomLeavePlayer(int RoomNo, INT64 AccountNo)
 		}
 	}	
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
-}
-
-bool CGameServer::MonitorInit()
-{
-	_hMonitorThread = (HANDLE)_beginthreadex(NULL, 0, &MonitorThread, (LPVOID)this, 0, NULL);
-	_hLanMonitorThread = (HANDLE)_beginthreadex(NULL, 0, &LanMonitorThread, (LPVOID)this, 0, NULL);
-	return true;
 }
 
 bool CGameServer::MonitorOnOff()
@@ -389,9 +403,99 @@ void CGameServer::HttpSendThread_Update()
 	//	이벤트로 스레드를 깨운 후 HttpQueue에 있는 데이터 처리
 	//	처리할 데이터가 남아 있을 경우 무한루프 
 	//-------------------------------------------------------------
-	
+	while (1)
+	{
+		WaitForSingleObject(_hHttpEvent, INFINITE);
+		while (0 < _HttpQueue.GetUseCount())
+		{
+			CRingBuffer * pBuffer;
+			_HttpQueue.Dequeue(pBuffer);
+			if (nullptr == pBuffer)
+				break;
+			WORD Type;
+			pBuffer->Dequeue((char*)&Type, sizeof(Type));
+			
+			switch (Type)
+			{
+			case SELECT:
+			{
+				HttpSend_Select(pBuffer);
+			}
+			break;
+			case UPDATE:
+			{
+				HttpSend_Update(pBuffer);
+			}
+			break;
+			default:
+			{
+				wprintf(L"Wrong Packet Type !!\n");
+				g_CrashDump->Crash();
+				break;
+			}
+			}
+		}
+	}
 }
 
+void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
+{
+	//-----------------------------------------------------------
+	//	select_account.php 호출
+	//-----------------------------------------------------------
+	int Index = NULL;
+	INT64 AccountNo = NULL;
+	pBuffer->Dequeue((char*)&Index, sizeof(Index));
+	pBuffer->Dequeue((char*)&AccountNo, sizeof(AccountNo));
+	//	Set Post Data
+	Json::Value PostData;
+	PostData["accountno"] = AccountNo;
+	string temp = HttpPacket_Create(PostData);
+	//	Result Check
+	if (false == _pSessionArray[Index]->OnHttp_Result_SelectAccount(temp))
+		return;
+	temp.clear();
+	//-----------------------------------------------------------
+	//	select_contents.php 호출
+	//-----------------------------------------------------------
+	temp = HttpPacket_Create(PostData);
+	//	Result Check
+	if (false == _pSessionArray[Index]->OnHttp_Result_SelectContents(temp))
+		return;
+
+	//	성공 패킷 응답
+	_pSessionArray[Index]->OnHttp_Result_Success();
+	return;
+}
+
+void CGameServer::HttpSend_Update(CRingBuffer * pBuffer)
+{
+	
+	return;
+}
+
+string CGameServer::HttpPacket_Create(Json::Value PostData)
+{
+	Json::StyledWriter writer;
+	string Data = writer.write(PostData);
+	WinHttpClient HttpClient(Config.APISERVER_SELECT_ACCOUNT);
+	HttpClient.SetAdditionalDataToSend((BYTE*)Data.c_str(), Data.size());
+	//	Set Request Header
+	wchar_t szSize[50] = L"";
+	swprintf_s(szSize, L"%d", Data.size());
+	wstring Headers = L"Content-Length: ";
+	Headers += szSize;
+	Headers += L"\r\nContent-Type: application/x-www-form-urlencoded\r\n";
+	HttpClient.SetAdditionalRequestHeaders(Headers);
+	//	Send HTTP post request
+	HttpClient.SendHttpRequest(L"POST");
+	//	Response wstring -> string convert
+	wstring response = HttpClient.GetResponseContent();
+	string temp;
+	temp.assign(response.begin(), response.end());
+	
+	return temp;
+}
 
 void CGameServer::WaitRoomSizeCheck()
 {

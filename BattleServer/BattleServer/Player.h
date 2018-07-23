@@ -18,6 +18,9 @@ public:
 	void	OnGame_ClientLeave();
 	void	OnGame_Packet(CPacket *pPacket);
 	void	OnGame_ClientRelease();
+	bool OnHttp_Result_SelectAccount(string temp);
+	bool OnHttp_Result_SelectContents(string temp);
+	void OnHttp_Result_Success();
 
 	void	SetGame(CGameServer * pGameServer);
 	void	UTF8toUTF16(const char *szText, WCHAR *szBuf, int iBufLen);

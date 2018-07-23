@@ -25,6 +25,12 @@ enum enENTERROOM_RESULT
 	ROOMUSER_MAX = 5,
 };
 
+enum enHTTPTYPE
+{
+	SELECT = 1,
+	UPDATE = 2,
+
+};
 typedef struct st_RoomPlayerInfo
 {
 	UINT64 AccountNo;
@@ -61,9 +67,9 @@ public:
 	//-----------------------------------------------------------
 	//	모니터링 관련 스레드 / 함수
 	//-----------------------------------------------------------
+	bool	ThreadInit();
 	void	MonitorSendPacket();
 	bool	MonitorSendPacketCreate(BYTE DataType);
-	bool	MonitorInit();
 	bool	MonitorOnOff();
 	static unsigned int __stdcall MonitorThread(void *pParam)
 	{
@@ -120,6 +126,9 @@ public:
 		return true;
 	}
 	void	HttpSendThread_Update();
+	void	HttpSend_Select(CRingBuffer * pBuffer);
+	void	HttpSend_Update(CRingBuffer * pBuffer);
+	string	HttpPacket_Create(Json::Value PostData);
 	//-----------------------------------------------------------
 	//	사용자 함수 - OnAuth_Update
 	//-----------------------------------------------------------
@@ -141,6 +150,10 @@ public:
 	SRWLOCK		_WaitRoom_lock;
 	SRWLOCK		_PlayRoom_lock;
 	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
+	CMemoryPool<CRingBuffer> *_HttpPool;
+	CLockFreeQueue<CRingBuffer*> _HttpQueue;
+	HANDLE	_hHttpEvent;
+
 	char	_OldConnectToken[32];			//	배틀서버 접속 토큰 ( 기존 )
 	char	_CurConnectToken[32];			//	배틀서버 접속 토큰 ( 신규 )
 	__int64 _CreateTokenTick;				//	토큰 신규 발행한 시간
@@ -173,6 +186,8 @@ private:
 	CEthernet _Ethernet;
 	HANDLE	_hMonitorThread;
 	HANDLE	_hLanMonitorThread;
+	HANDLE	_hLanMasterCheckThread;
+	HANDLE	_hHttpSendThread[10];
 
 	PDH_HQUERY		_CpuQuery;
 	PDH_HCOUNTER	_MemoryAvailableMBytes;

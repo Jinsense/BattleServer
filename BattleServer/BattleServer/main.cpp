@@ -32,7 +32,6 @@ int main()
 			return 0;
 		}
 	}
-	Server.MonitorInit();
 
 	while (bFlag)
 	{

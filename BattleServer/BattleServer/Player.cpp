@@ -96,133 +96,17 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			return;
 		}		
 		//-------------------------------------------------------------
-		//	JSON 데이터 - select_account.php 요청 - 세션키 비교
+		//	JSON 데이터 - select 요청
 		//-------------------------------------------------------------
-		//	Set Post Data
-		Json::Value PostData;
-		Json::StyledWriter writer;
-		PostData["accountno"] = _AccountNo;
-		string Data = writer.write(PostData);
-		WinHttpClient HttpClient(Config.APISERVER_SELECT_ACCOUNT);
-		HttpClient.SetAdditionalDataToSend((BYTE*)Data.c_str(), Data.size());
-		//	Set Request Header
-		wchar_t szSize[50] = L"";
-		swprintf_s(szSize, L"%d", Data.size());
-		wstring Headers = L"Content-Length: ";
-		Headers += szSize;
-		Headers += L"\r\nContent-Type: application/x-www-form-urlencoded\r\n";
-		HttpClient.SetAdditionalRequestHeaders(Headers);
-		//	Send HTTP post request
-		HttpClient.SendHttpRequest(L"POST");
-		//	Response wstring -> string convert
-		wstring response = HttpClient.GetResponseContent();
-		string temp;
-		temp.assign(response.begin(), response.end());
-		//	Result Check
-		Json::Reader reader;
-		Json::Value result;
-		bool Res = reader.parse(temp, result);
-		if (!Res)
-		{
-			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
-			CPacket * newPacket = CPacket::Alloc();
-			Type = en_PACKET_CS_GAME_RES_LOGIN;
-			BYTE Status = CLIENT_ERROR;
-			*newPacket << Type << Status;
-			SendPacket(newPacket);
-			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-			newPacket->Free();
-			return;
-		}
-		int ResNum = result["result"].asInt();
-		if (LOGIN_SUCCESS != ResNum)
-		{
-			BYTE Status = CLIENT_ERROR;
-			CPacket * newPacket = CPacket::Alloc();
-			Type = en_PACKET_CS_GAME_RES_LOGIN;
-			*newPacket << Type << Status;
-			SendPacket(newPacket);
-			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-			newPacket->Free();
-			return;
-		}
-
-		string sessionkey = result["sessionkey"].asCString();
-		if (0 != strncmp(sessionkey.c_str(), _SessionKey, sizeof(_SessionKey)))
-		{
-			//	세션키가 다름 응답 후 끊기
-			CPacket * newPacket = CPacket::Alloc();
-			Type = en_PACKET_CS_GAME_RES_LOGIN;
-			BYTE Status = SESSIONKEY_ERROR;
-			*newPacket << Type << Status;
-			SendPacket(newPacket);
-			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-			newPacket->Free();
-			return;
-		}
-		//	Nickname 저장 - char로 변환 후 wchar로 저장
-		string Nickname = result["nickname"].asCString();
-		char Temp[20] = { 0 , };
-		strcpy_s(Temp, sizeof(Temp), Nickname.c_str());
-		UTF8toUTF16(Temp, _Nickname, sizeof(Temp));		
-
-		//	JSON 데이터 - select_contents.php 요청 - 계정 정보 불러오기
-		HttpClient.UpdateUrl(Config.APISERVER_SELECT_CONTENTS);
-		HttpClient.SetAdditionalDataToSend((BYTE*)Data.c_str(), Data.size());
-		//	Set Request Header
-		wchar_t Size[50] = L"";
-		swprintf_s(Size, L"%d", Data.size());
-		Headers = L"Content-Length: ";
-		Headers += Size;
-		Headers += L"\r\nContent-Type: application/x-www-form-urlencoded\r\n";
-		HttpClient.SetAdditionalRequestHeaders(Headers);
-		//	Send HTTP post request
-		HttpClient.SendHttpRequest(L"POST");
-		//	Response wstring -> string convert
-		response = HttpClient.GetResponseContent();
-		temp.assign(response.begin(), response.end());
-
-		Res = reader.parse(temp, result);
-		if (!Res)
-		{
-			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
-			CPacket * newPacket = CPacket::Alloc();
-			Type = en_PACKET_CS_GAME_RES_LOGIN;
-			BYTE Status = CLIENT_ERROR;
-			*newPacket << Type << Status;
-			SendPacket(newPacket);
-			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-			newPacket->Free();
-			return;
-		}
-		ResNum = result["result"].asInt();
-		if (LOGIN_SUCCESS != ResNum)
-		{
-			BYTE Status = CLIENT_ERROR;
-			CPacket * newPacket = CPacket::Alloc();
-			Type = en_PACKET_CS_GAME_RES_LOGIN;
-			*newPacket << Type << Status;
-			SendPacket(newPacket);
-			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-			newPacket->Free();
-			return;
-		}
-		_Playtime = result["play"].asInt();
-		_Playcount = result["playercount"].asInt();
-		_Kill = result["kill"].asInt();
-		_Die = result["Die"].asInt();
-		_Win = result["Win"].asInt();
-
-		//	성공 패킷 응답
-//		_AuthToGameFlag = true;
-
-		CPacket *pNewPacket = CPacket::Alloc();
-		Type = en_PACKET_CS_GAME_RES_LOGIN;
-		BYTE Status = 1;
-
-		*pNewPacket << Type << Status << _AccountNo;
-		SendPacket(pNewPacket);
-		pNewPacket->Free();
+		//	RingBuffer-메모리풀 생성하여 HttpQueue에 저장한 후 이벤트 호출
+		WORD Type = SELECT;
+		CRingBuffer *pBuffer = _pGameServer->_HttpPool->Alloc();
+		pBuffer->Clear();
+		pBuffer->Enqueue((char*)&Type, sizeof(Type));
+		pBuffer->Enqueue((char*)&_iArrayIndex, sizeof(_iArrayIndex));
+		pBuffer->Enqueue((char*)&_AccountNo, sizeof(_AccountNo));
+		_pGameServer->_HttpQueue.Enqueue(pBuffer);
+		SetEvent(_pGameServer->_hHttpEvent);
 	}
 	break;
 	//------------------------------------------------------------
@@ -417,6 +301,107 @@ void CPlayer::OnGame_ClientRelease()
 
 
 
+	return;
+}
+
+bool CPlayer::OnHttp_Result_SelectAccount(string temp)
+{
+	Json::Reader reader;
+	Json::Value result;
+	bool Res = reader.parse(temp, result);
+	if (!Res)
+	{
+		_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
+		CPacket * newPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		BYTE Status = CLIENT_ERROR;
+		*newPacket << Type << Status;
+		SendPacket(newPacket);
+//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+		newPacket->Free();
+		return false;
+	}
+	int ResNum = result["result"].asInt();
+	if (LOGIN_SUCCESS != ResNum)
+	{
+		BYTE Status = CLIENT_ERROR;
+		CPacket * newPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		*newPacket << Type << Status;
+		SendPacket(newPacket);
+//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+		newPacket->Free();
+		return false;
+	}
+
+	string sessionkey = result["sessionkey"].asCString();
+	if (0 != strncmp(sessionkey.c_str(), _SessionKey, sizeof(_SessionKey)))
+	{
+		//	세션키가 다름 응답 후 끊기
+		CPacket * newPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		BYTE Status = SESSIONKEY_ERROR;
+		*newPacket << Type << Status;
+		SendPacket(newPacket);
+//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+		newPacket->Free();
+		return false;
+	}
+	//	Nickname 저장 - char로 변환 후 wchar로 저장
+	string Nickname = result["nickname"].asCString();
+	char Temp[20] = { 0 , };
+	strcpy_s(Temp, sizeof(Temp), Nickname.c_str());
+	UTF8toUTF16(Temp, _Nickname, sizeof(Temp));
+
+	return true;
+}
+
+bool CPlayer::OnHttp_Result_SelectContents(string temp)
+{
+	Json::Reader reader;
+	Json::Value result;
+	bool Res = reader.parse(temp, result);
+	if (!Res)
+	{
+		_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
+		CPacket * newPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		BYTE Status = CLIENT_ERROR;
+		*newPacket << Type << Status;
+		SendPacket(newPacket);
+		//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+		newPacket->Free();
+		return false;
+	}
+	int ResNum = result["result"].asInt();
+	if (LOGIN_SUCCESS != ResNum)
+	{
+		BYTE Status = CLIENT_ERROR;
+		CPacket * newPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		*newPacket << Type << Status;
+		SendPacket(newPacket);
+		//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+		newPacket->Free();
+		return false;
+	}
+	_Playtime = result["play"].asInt();
+	_Playcount = result["playercount"].asInt();
+	_Kill = result["kill"].asInt();
+	_Die = result["Die"].asInt();
+	_Win = result["Win"].asInt();
+	return true;
+}
+
+void CPlayer::OnHttp_Result_Success()
+{
+	CPacket *pNewPacket = CPacket::Alloc();
+	WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+	BYTE Status = 1;
+
+	*pNewPacket << Type << Status << _AccountNo;
+	SendPacket(pNewPacket);
+	pNewPacket->Free();
 	return;
 }
 

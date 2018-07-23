@@ -72,6 +72,9 @@ public:
 	virtual void OnGame_ClientLeave() = 0;
 	virtual void OnGame_Packet(CPacket *pPacket) = 0;
 	virtual void OnGame_ClientRelease() = 0;
+	virtual bool OnHttp_Result_SelectAccount(string temp) = 0;
+	virtual bool OnHttp_Result_SelectContents(string temp) = 0;
+	virtual void OnHttp_Result_Success() = 0;
 
 	void	Set(CBattleServer *pBattleServer);
 	bool	Find_AccountNo(INT64 AccountNO);
