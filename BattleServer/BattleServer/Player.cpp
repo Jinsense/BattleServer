@@ -137,23 +137,6 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"AccountNo Not Same [My AccountNo : %d, RecvAccountNo]"), _AccountNo, AccountNo);
 			Disconnect();
 		}
-		//	EnterToken 일치할 경우 입장 허용
-		if (0 != strncmp(EnterToken, _pGameServer->_CurConnectToken, sizeof(_pGameServer->_CurConnectToken)))
-		{
-			//	CurToken이 아닐경우 OldToken 검사
-			if (0 != strncmp(EnterToken, _pGameServer->_OldConnectToken, sizeof(_pGameServer->_OldConnectToken)))
-			{
-				//	둘다 아닐경우 로그 남기고 EnterToken 다름 패킷 전송
-				CPacket * newPacket = CPacket::Alloc();
-				WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-				WORD Result = ENTERTOKEN_FAIL;
-				Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-				*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
-				SendPacket(newPacket);
-				newPacket->Free();
-				return;
-			}
-		}
 		//	BattleRoomMap에서 방 번호로 방을 찾음
 		bool NotFind = false;
 		bool NotReadyRoom = false;
@@ -189,6 +172,20 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 			SendPacket(newPacket);
 			newPacket->Free();
 			return;
+		}
+		//	EnterToken 일치할 경우 입장 허용
+		if (0 != strncmp(EnterToken, (*iter).second->Entertoken, sizeof(EnterToken)))
+		{
+			//	다른경우 로그 남기고 EnterToken 다름 패킷 전송
+			CPacket * newPacket = CPacket::Alloc();
+			WORD MaxUser = Config.BATTLEROOM_MAX_USER;
+			WORD Result = ENTERTOKEN_FAIL;
+			Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
+			*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
+			SendPacket(newPacket);
+			newPacket->Free();
+			return;
+
 		}
 		//	방에 유저가 들어갈 수 있는지 인원수 체크
 		if (0 >= ((*iter).second->MaxUser - (*iter).second->CurUser))

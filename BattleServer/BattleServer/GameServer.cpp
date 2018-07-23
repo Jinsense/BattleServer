@@ -108,7 +108,11 @@ void CGameServer::OnGame_Update()
 	//	클라이언트의 요청 (패킷수신) 외에 기본적으로 항시
 	//	처리되어야 할 게임 컨텐츠 부분 로직
 	//-----------------------------------------------------------
+	
+	//	더미테스트 상태이므로 PlayMap에 있는 방 파괴 및 방의 유저들 종료처리
+	AcquireSRWLockExclusive(&_PlayRoom_lock);
 
+	ReleaseSRWLockExclusive(&_PlayRoom_lock);
 	return;
 }
 
@@ -359,6 +363,13 @@ bool CGameServer::MonitorSendPacketCreate(BYTE DataType)
 	return true;
 }
 
+void CGameServer::EntertokenCreate(char *pBuff)
+{
+	for (int i = 0; i < 32; i++)
+		pBuff[i] = rand() % 26 + 97;
+	return;
+}
+
 void CGameServer::NewConnectTokenCreate()
 {
 	strcpy_s(_OldConnectToken, sizeof(_OldConnectToken), _CurConnectToken);
@@ -515,6 +526,7 @@ void CGameServer::WaitRoomCreate()
 	//	방을 생성하고 마스터 서버에 통보
 	//-----------------------------------------------------------
 	BATTLEROOM * Room = _BattleRoomPool->Alloc();
+	EntertokenCreate(Room->Entertoken);
 	Room->CurUser = 0;
 	Room->MaxUser = Config.BATTLEROOM_MAX_USER;
 	Room->RoomNo++;
@@ -528,7 +540,7 @@ void CGameServer::WaitRoomCreate()
 	CPacket *pPacket = CPacket::Alloc();
 	WORD Type = en_PACKET_BAT_MAS_REQ_CREATED_ROOM;
 	*pPacket << Type << _BattleServerNo << Room->RoomNo << Room->MaxUser;
-	pPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
+	pPacket->PushData((char*)&Room->Entertoken, sizeof(Room->Entertoken));
 	_pMaster->SendPacket(pPacket);
 	pPacket->Free();
 	return;

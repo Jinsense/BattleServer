@@ -39,6 +39,7 @@ typedef struct st_RoomPlayerInfo
 
 typedef struct st_BattleRoom
 {
+	char Entertoken[32] = { 0, };	//	Entertoken;
 	int RoomNo;			//	방 번호
 	int MaxUser;		//	최대 유저
 	int CurUser;		//	현재 유저
@@ -139,9 +140,10 @@ public:
 	//-----------------------------------------------------------
 	//	사용자 함수 - OnGame_Update
 	//-----------------------------------------------------------
-
+	
 
 private:
+	void	EntertokenCreate(char *pBuff);
 	void	NewConnectTokenCreate();
 
 public:
