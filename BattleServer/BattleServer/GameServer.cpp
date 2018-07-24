@@ -109,10 +109,10 @@ void CGameServer::OnGame_Update()
 	//	처리되어야 할 게임 컨텐츠 부분 로직
 	//-----------------------------------------------------------
 	
-	//	더미테스트 상태이므로 PlayMap에 있는 방 파괴 및 방의 유저들 종료처리
-	AcquireSRWLockExclusive(&_PlayRoom_lock);
-
-	ReleaseSRWLockExclusive(&_PlayRoom_lock);
+	//	더미테스트 상태이므로 플레이 종료 플래그 true 변경
+	PlayRoomGameEndChange();
+	PlayRoomGameEndCheck();
+	PlayRoomDestroyCheck();
 	return;
 }
 
@@ -533,6 +533,7 @@ void CGameServer::WaitRoomCreate()
 	Room->ReadyCount = NULL;
 	Room->RoomReady = false;
 	Room->PlayReady = false;
+	Room->GameEnd = false;
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
 	_WaitRoomMap.insert(make_pair(Room->RoomNo, Room));
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
@@ -622,11 +623,55 @@ void CGameServer::WaitRoomGameReadyCheck()
 	return;
 }
 
+void CGameServer::PlayRoomGameEndCheck()
+{
+	//-----------------------------------------------------------
+	//	게임이 끝났으나 유저가 나가지 않는 경우 강제로 끊음
+	//-----------------------------------------------------------
+	AcquireSRWLockExclusive(&_PlayRoom_lock);
+	for (auto i = _PlayRoomMap.begin(); i != _PlayRoomMap.end(); i++)
+	{
+		if (true == (*i).second->GameEnd)
+		{
+			for (auto j = (*i).second->RoomPlayer.begin(); j != (*i).second->RoomPlayer.end();)
+			{
+				_pSessionArray[(*j).Index]->Disconnect();
+//				(*i).second->RoomPlayer.erase(j);
+			}
+		}
+	}
+	ReleaseSRWLockExclusive(&_PlayRoom_lock);
+}
 
+void CGameServer::PlayRoomDestroyCheck()
+{
+	//-----------------------------------------------------------
+	//	방에 유저가 없을 경우 방을 파괴 
+	//-----------------------------------------------------------
+	AcquireSRWLockExclusive(&_PlayRoom_lock);
+	for (auto i = _PlayRoomMap.begin(); i != _PlayRoomMap.end();)
+	{
+		if (0 == (*i).second->RoomPlayer.size())
+		{
+			_PlayRoomMap.erase(i);
+		}
+		else
+			i++;
+	}
+	ReleaseSRWLockExclusive(&_PlayRoom_lock);
+	return;
+}
 
-
-
-
+void CGameServer::PlayRoomGameEndChange()
+{
+	AcquireSRWLockExclusive(&_PlayRoom_lock);
+	for (auto i = _PlayRoomMap.begin(); i != _PlayRoomMap.end(); i++)
+	{
+		(*i).second->GameEnd = true;
+	}
+	ReleaseSRWLockExclusive(&_PlayRoom_lock);
+	return;
+}
 
 
 

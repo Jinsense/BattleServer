@@ -64,49 +64,7 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 	//-------------------------------------------------------------
 	case en_PACKET_CS_GAME_REQ_LOGIN:
 	{
-		*pPacket >> _AccountNo;
-		pPacket->PopData((char*)_SessionKey, sizeof(_SessionKey));
-		*pPacket >> _Version;
-
-		//	Config의 버전 코드와 맞는지 비교를 한다.
-		if (_Version != Config.VER_CODE)
-		{
-			//	버전 코드가 다를 경우 로그를 남기고 버전오류 응답을 보낸 후 끊는다.
-			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM,
-				const_cast<WCHAR*>(L"Ver_Code Not Same [AccountNo : %d]"), _AccountNo);
-			CPacket * newPacket = CPacket::Alloc();
-			Type = en_PACKET_CS_GAME_RES_LOGIN;
-			BYTE Result = VER_ERROR;
-			*newPacket << Type << _AccountNo << Result;
-			SendPacket(newPacket);
-			newPacket->Free();
-			return;
-		}
-		//	중복 로그인 검사
-		if (true == Find_AccountNo(_AccountNo))
-		{
-			//	중복로그인 패킷 전송
-			//	기존 로그인 유저는 함수 내부에서 LogoutFlag 변경 처리
-			CPacket *newPacket = CPacket::Alloc();
-			Type = en_PACKET_CS_GAME_RES_LOGIN;
-			BYTE Result = OVERLAPP_LOGIN;
-			*newPacket << Type << _AccountNo << Result;
-			SendPacket(newPacket);
-			newPacket->Free();
-			return;
-		}		
-		//-------------------------------------------------------------
-		//	JSON 데이터 - select 요청
-		//-------------------------------------------------------------
-		//	RingBuffer-메모리풀 생성하여 HttpQueue에 저장한 후 이벤트 호출
-		WORD Type = SELECT;
-		CRingBuffer *pBuffer = _pGameServer->_HttpPool->Alloc();
-		pBuffer->Clear();
-		pBuffer->Enqueue((char*)&Type, sizeof(Type));
-		pBuffer->Enqueue((char*)&_iArrayIndex, sizeof(_iArrayIndex));
-		pBuffer->Enqueue((char*)&_AccountNo, sizeof(_AccountNo));
-		_pGameServer->_HttpQueue.Enqueue(pBuffer);
-		SetEvent(_pGameServer->_hHttpEvent);
+		Auth_ReqLogin(pPacket);
 	}
 	break;
 	//------------------------------------------------------------
@@ -124,122 +82,7 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 	//------------------------------------------------------------
 	case en_PACKET_CS_GAME_REQ_ENTER_ROOM:
 	{
-		INT64 AccountNo = NULL;
-		int RoomNo = NULL;
-		char EnterToken[32] = { 0, };
-		*pPacket >> AccountNo >> RoomNo;
-		pPacket->PopData((char*)&EnterToken, sizeof(EnterToken));
-		//	특정 방 입장 요청
-		//	AccountNo는 버그 감지 및 테스트용
-		if (AccountNo != _AccountNo)
-		{
-			//	계정번호가 다름 - 로그 남기고 끊음
-			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"AccountNo Not Same [My AccountNo : %d, RecvAccountNo]"), _AccountNo, AccountNo);
-			Disconnect();
-		}
-		//	BattleRoomMap에서 방 번호로 방을 찾음
-		bool NotFind = false;
-		bool NotReadyRoom = false;
-		std::map<int, BATTLEROOM*>::iterator iter;
-		AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
-		iter = _pGameServer->_WaitRoomMap.find(RoomNo);
-		if (iter == _pGameServer->_WaitRoomMap.end())
-			NotFind = true;
-		if (true == (*iter).second->RoomReady)
-			NotReadyRoom = true;
-		ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
-		//	방이 존재하는지 확인 후 없는 방일 경우 방 없음 패킷 전송
-		if (true == NotFind)
-		{
-			CPacket * newPacket = CPacket::Alloc();
-			WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-			WORD Result = NOT_FINDROOM;
-			Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-			*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
-			SendPacket(newPacket);
-			newPacket->Free();
-			return;
-		}
-		//	대기방인지 확인
-		if (true == NotReadyRoom)
-		{
-			//	대기방이 아님 패킷 전송
-			CPacket * newPacket = CPacket::Alloc();
-			WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-			WORD Result = NOT_READYROOM;
-			Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-			*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
-			SendPacket(newPacket);
-			newPacket->Free();
-			return;
-		}
-		//	EnterToken 일치할 경우 입장 허용
-		if (0 != strncmp(EnterToken, (*iter).second->Entertoken, sizeof(EnterToken)))
-		{
-			//	다른경우 로그 남기고 EnterToken 다름 패킷 전송
-			CPacket * newPacket = CPacket::Alloc();
-			WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-			WORD Result = ENTERTOKEN_FAIL;
-			Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-			*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
-			SendPacket(newPacket);
-			newPacket->Free();
-			return;
-
-		}
-		//	방에 유저가 들어갈 수 있는지 인원수 체크
-		if (0 >= ((*iter).second->MaxUser - (*iter).second->CurUser))
-		{
-			//	들어갈 자리가 없음 패킷 전송
-			CPacket * newPacket = CPacket::Alloc();
-			WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-			WORD Result = ROOMUSER_MAX;
-			Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-			*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
-			SendPacket(newPacket);
-			newPacket->Free();
-			return;	
-		}
-		(*iter).second->CurUser++;
-		//	방에 입장 인원이 꽉찼을 경우 마스터 서버로 대기 방 닫힘 패킷 전송
-		if ((*iter).second->CurUser == (*iter).second->MaxUser)
-		{
-			CPacket * CloseRoomPacket = CPacket::Alloc();
-			Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
-			*CloseRoomPacket >> Type >> (*iter).second->RoomNo;
-			_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
-			CloseRoomPacket->Free();
-			(*iter).second->RoomReady = true;
-		}
-		//	_RoomNo에 방 번호와 RoomPlayer 구조체에 Session Index번호 지정
-		//	현재는 락을 걸지 않았지만 차후 문제가 생길경우 락을 추가하여 해결하자
-		_RoomNo = RoomNo;
-		RoomPlayerInfo Info;
-		Info.AccountNo = _AccountNo;
-		Info.Index = _iArrayIndex;
-		(*iter).second->RoomPlayer.push_back(Info);
-		//	방 입장 응답 패킷 전송
-		CPacket * newPacket = CPacket::Alloc();
-		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-		WORD Result = enENTERROOM_RESULT::SUCCESS;
-		Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket >> AccountNo >> RoomNo >> MaxUser >> Result;
-		SendPacket(newPacket);
-		newPacket->Free();
-		//	정상적으로 입장이 성공할 경우 방에 유저가 추가됨 패킷도 추가 전송
-		//	새로 접속한 클라이언트에게도 패킷을 보내줌
-		//	GameServer.cpp에서 패킷을 보내려면 Index번호가 필요함
-		CPacket * AddPacket = CPacket::Alloc();
-		*AddPacket >> _RoomNo >> _AccountNo;
-		AddPacket->PushData((char*)&_Nickname, sizeof(_Nickname));
-		*AddPacket >> _Playcount >> _Playtime >> _Kill >> _Die >> _Win;
-		AddPacket->AddRef();
-		for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
-		{
-			_pBattleServer->_pSessionArray[(*j).Index]->SendPacket(AddPacket);
-			AddPacket->Free();
-		}
-		AddPacket->Free();
+		Auth_ReqEnterRoom(pPacket);
 	}
 	break;	
 	default:
@@ -399,6 +242,243 @@ void CPlayer::OnHttp_Result_Success()
 	*pNewPacket << Type << Status << _AccountNo;
 	SendPacket(pNewPacket);
 	pNewPacket->Free();
+	return;
+}
+
+void CPlayer::Auth_ReqLogin(CPacket *pPacket)
+{
+	*pPacket >> _AccountNo;
+	pPacket->PopData((char*)_SessionKey, sizeof(_SessionKey));
+	*pPacket >> _Version;
+
+	if (false == VersionCheck())
+		return;
+	
+	if (false == OverlappLoginCheck())
+		return;
+
+	return;
+}
+
+void CPlayer::Auth_ReqEnterRoom(CPacket *pPacket)
+{
+	INT64 AccountNo = NULL;
+//	int RoomNo = NULL;
+	char EnterToken[32] = { 0, };
+	*pPacket >> AccountNo >> _RoomNo;
+	pPacket->PopData((char*)&EnterToken, sizeof(EnterToken));
+
+	if (false == AccountnoCheck(AccountNo))
+		return;
+	BATTLEROOM * Room = FindWaitRoom(_RoomNo);
+	if (nullptr == Room)
+		return;
+	if (false == WaitRoomCheck(Room->RoomReady))
+		return;
+	if (false == EnterTokenCheck(EnterToken, Room->Entertoken))
+		return;
+	if (false == WaitRoomUserNumCheck(Room))
+		return;
+
+	RoomEnterSuccess(Room);
+	RoomEnterPlayer(Room);
+
+	return;
+}
+
+bool CPlayer::VersionCheck()
+{
+	//	Config의 버전 코드와 맞는지 비교를 한다.
+	if (_Version != Config.VER_CODE)
+	{
+		//	버전 코드가 다를 경우 로그를 남기고 버전오류 응답을 보낸 후 끊는다.
+		_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM,
+			const_cast<WCHAR*>(L"Ver_Code Not Same [AccountNo : %d]"), _AccountNo);
+		CPacket * newPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		BYTE Result = VER_ERROR;
+		*newPacket << Type << _AccountNo << Result;
+		SendPacket(newPacket);
+		newPacket->Free();
+		return false;
+	}
+	return true;
+}
+
+bool CPlayer::OverlappLoginCheck()
+{
+	//	중복 로그인 검사
+	if (true == Find_AccountNo(_AccountNo))
+	{
+		//	중복로그인 패킷 전송
+		//	기존 로그인 유저는 함수 내부에서 LogoutFlag 변경 처리
+		CPacket *newPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		BYTE Result = OVERLAPP_LOGIN;
+		*newPacket << Type << _AccountNo << Result;
+		SendPacket(newPacket);
+		newPacket->Free();
+		return false;
+	}
+	return true;
+}
+
+void CPlayer::HttpJsonCall()
+{
+	//-------------------------------------------------------------
+	//	JSON 데이터 - select 요청
+	//-------------------------------------------------------------
+	//	RingBuffer-메모리풀 생성하여 HttpQueue에 저장한 후 이벤트 호출
+	WORD Type = SELECT;
+	CRingBuffer *pBuffer = _pGameServer->_HttpPool->Alloc();
+	pBuffer->Clear();
+	pBuffer->Enqueue((char*)&Type, sizeof(Type));
+	pBuffer->Enqueue((char*)&_iArrayIndex, sizeof(_iArrayIndex));
+	pBuffer->Enqueue((char*)&_AccountNo, sizeof(_AccountNo));
+	_pGameServer->_HttpQueue.Enqueue(pBuffer);
+	SetEvent(_pGameServer->_hHttpEvent);
+	return;
+}
+
+bool CPlayer::AccountnoCheck(INT64 AccountNo)
+{
+	//	AccountNo는 버그 감지 및 테스트용
+	if (AccountNo != _AccountNo)
+	{
+		//	계정번호가 다름 - 로그 남기고 끊음
+		_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"AccountNo Not Same [My AccountNo : %d, RecvAccountNo]"), _AccountNo, AccountNo);
+		Disconnect();
+		return false;
+	}
+	return true;
+}
+
+BATTLEROOM * CPlayer::FindWaitRoom(int RoomNo)
+{
+	//	WaitRoomMap에서 방 번호로 방을 찾음
+	bool NotFind = false;
+	std::map<int, BATTLEROOM*>::iterator iter;
+	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	iter = _pGameServer->_WaitRoomMap.find(RoomNo);
+	if (iter == _pGameServer->_WaitRoomMap.end())
+		NotFind = true;
+	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	//	방이 존재하는지 확인 후 없는 방일 경우 방 없음 패킷 전송
+	if (true == NotFind)
+	{
+		CPacket * newPacket = CPacket::Alloc();
+		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
+		WORD Result = NOT_FINDROOM;
+		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
+		*newPacket >> _AccountNo >> RoomNo >> MaxUser >> Result;
+		SendPacket(newPacket);
+		newPacket->Free();
+		return nullptr;
+	}
+	return (*iter).second;
+}
+
+bool CPlayer::WaitRoomCheck(bool RoomReady)
+{
+	//	대기방인지 확인
+	if (true == RoomReady)
+	{
+		//	대기방이 아님 패킷 전송
+		CPacket * newPacket = CPacket::Alloc();
+		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
+		WORD Result = NOT_READYROOM;
+		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
+		*newPacket >> _AccountNo >> _RoomNo >> MaxUser >> Result;
+		SendPacket(newPacket);
+		newPacket->Free();
+		return false;
+	}
+	return true;
+}
+
+bool CPlayer::EnterTokenCheck(char * EnterToken, char * RoomToken)
+{
+	//	EnterToken 일치할 경우 입장 허용
+	if (0 != strncmp(EnterToken, RoomToken, sizeof(EnterToken)))
+	{
+		//	다른경우 로그 남기고 EnterToken 다름 패킷 전송
+		CPacket * newPacket = CPacket::Alloc();
+		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
+		WORD Result = ENTERTOKEN_FAIL;
+		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
+		*newPacket >> _AccountNo >> _RoomNo >> MaxUser >> Result;
+		SendPacket(newPacket);
+		newPacket->Free();
+		return false;
+	}
+	return true;
+}
+
+bool CPlayer::WaitRoomUserNumCheck(BATTLEROOM * Room)
+{
+	//	방에 유저가 들어갈 수 있는지 인원수 체크
+	if (0 >= (Room->MaxUser - Room->CurUser))
+	{
+		//	들어갈 자리가 없음 패킷 전송
+		CPacket * newPacket = CPacket::Alloc();
+		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
+		WORD Result = ROOMUSER_MAX;
+		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
+		*newPacket >> _AccountNo >> _RoomNo >> MaxUser >> Result;
+		SendPacket(newPacket);
+		newPacket->Free();
+		return false;
+	}
+	Room->CurUser++;
+	//	방에 입장 인원이 꽉찼을 경우 마스터 서버로 대기 방 닫힘 패킷 전송
+	if (Room->CurUser == Room->MaxUser)
+	{
+		CPacket * CloseRoomPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
+		*CloseRoomPacket >> Type >> Room->RoomNo;
+		_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
+		CloseRoomPacket->Free();
+		Room->RoomReady = true;
+	}
+	return true;
+}
+
+void CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
+{
+	//	_RoomNo에 방 번호와 RoomPlayer 구조체에 Session Index번호 지정
+	//	현재는 락을 걸지 않았지만 차후 문제가 생길경우 락을 추가하여 해결하자
+	//	_RoomNo = RoomNo;
+	RoomPlayerInfo Info;
+	Info.AccountNo = _AccountNo;
+	Info.Index = _iArrayIndex;
+	Room->RoomPlayer.push_back(Info);
+	//	방 입장 응답 패킷 전송
+	CPacket * newPacket = CPacket::Alloc();
+	WORD MaxUser = Config.BATTLEROOM_MAX_USER;
+	WORD Result = enENTERROOM_RESULT::SUCCESS;
+	WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
+	*newPacket >> _AccountNo >> _RoomNo >> MaxUser >> Result;
+	SendPacket(newPacket);
+	newPacket->Free();
+	return;
+}
+
+void CPlayer::RoomEnterPlayer(BATTLEROOM * Room)
+{
+	//	정상적으로 입장이 성공할 경우 방에 유저가 추가됨 패킷도 추가 전송
+	//	새로 접속한 클라이언트에게도 패킷을 보내줌
+	//	GameServer.cpp에서 패킷을 보내려면 Index번호가 필요함
+	CPacket * AddPacket = CPacket::Alloc();
+	*AddPacket >> _RoomNo >> _AccountNo;
+	AddPacket->PushData((char*)&_Nickname, sizeof(_Nickname));
+	*AddPacket >> _Playcount >> _Playtime >> _Kill >> _Die >> _Win;
+	AddPacket->AddRef();
+	for (auto j = Room->RoomPlayer.begin(); j != Room->RoomPlayer.end(); j++)
+	{
+		_pBattleServer->_pSessionArray[(*j).Index]->SendPacket(AddPacket);
+		AddPacket->Free();
+	}
+	AddPacket->Free();
 	return;
 }
 

@@ -45,6 +45,10 @@ CConfig::CConfig()
 	CLIENT_MAX = NULL;
 	AUTH_MAX = NULL;
 	GAME_MAX = NULL;
+	USER_TIMEOUT = NULL;
+	SENDTHREAD_SLEEP = NULL;
+	AUTHTHREAD_SLEEP = NULL;
+	GAMETHREAD_SLEEP = NULL;
 	PACKET_CODE = NULL;
 	PACKET_KEY1 = NULL;
 	PACKET_KEY2 = NULL;
@@ -61,7 +65,7 @@ CConfig::~CConfig()
 bool CConfig::Set()
 {
 	bool res = true;
-	res = _Parse.LoadFile(L"MasterServer_Config.ini");
+	res = _Parse.LoadFile(L"BattleServer_Config.ini");
 	if (false == res)
 		return false;
 	res = _Parse.ProvideArea("NETWORK");
@@ -72,6 +76,18 @@ bool CConfig::Set()
 		return false;
 	_Parse.GetValue("MASTERTOKEN", &MASTERTOKEN[0], &MASTERTOKEN_SIZE);
 
+	_Parse.GetValue("BATTLE_BIND_IP", &IP[0], &BATTLE_BIND_IP_SIZE);
+	_Parse.UTF8toUTF16(IP, BATTLE_BIND_IP, sizeof(BATTLE_BIND_IP));
+	_Parse.GetValue("BATTLE_BIND_PORT", &BATTLE_BIND_PORT);
+	if (false == res)
+		return false;
+
+	_Parse.GetValue("MASTER_BIND_IP", &IP[0], &MASTER_BIND_IP_SIZE);
+	_Parse.UTF8toUTF16(IP, MASTER_BIND_IP, sizeof(MASTER_BIND_IP));
+	_Parse.GetValue("MASTER_BIND_PORT", &MASTER_BIND_PORT);
+	if (false == res)
+		return false;
+
 	res = _Parse.GetValue("CHAT_BIND_IP", &IP[0], &CHAT_BIND_IP_SIZE);
 	if (false == res)
 		return false;
@@ -79,11 +95,13 @@ bool CConfig::Set()
 	res = _Parse.GetValue("CHAT_BIND_PORT", &CHAT_BIND_PORT);
 	if (false == res)
 		return false;
-	_Parse.GetValue("BATTLE_BIND_PORT", &IP[0], &BATTLE_BIND_IP_SIZE);
-	_Parse.UTF8toUTF16(IP, BATTLE_BIND_IP, sizeof(BATTLE_BIND_IP));
-	_Parse.GetValue("BATTLE_BIND_PORT", &BATTLE_BIND_PORT);
+
+	_Parse.GetValue("MONITOR_BIND_IP", &IP[0], &MONITOR_BIND_IP_SIZE);
+	_Parse.UTF8toUTF16(IP, MONITOR_BIND_IP, sizeof(MONITOR_BIND_IP));
+	_Parse.GetValue("MONITOR_BIND_PORT", &MONITOR_BIND_PORT);
 	if (false == res)
 		return false;
+
 	_Parse.GetValue("APISERVER_SELECT_ACCOUNT", &IP[0], &APISERVER_SELECT_ACCOUNT_SIZE);
 	_Parse.UTF8toUTF16(IP, APISERVER_SELECT_ACCOUNT, sizeof(APISERVER_SELECT_ACCOUNT));
 	_Parse.GetValue("APISERVER_SELECT_CONTENTS", &IP[0], &APISERVER_SELECT_CONTENTS_SIZE);
@@ -101,10 +119,14 @@ bool CConfig::Set()
 	_Parse.GetValue("BATTLEROOM_MAX_USER", &BATTLEROOM_MAX_USER);
 	_Parse.GetValue("BATTLEROOM_READYSEC", &BATTLEROOM_READYSEC);
 	_Parse.GetValue("CONNECTTOKEN_RECREATE", &CONNECTTOKEN_RECREATE);
-	_Parse.GetValue("USER_TIMEOUT", &SERVER_TIMEOUT);
+	_Parse.GetValue("USER_TIMEOUT", &USER_TIMEOUT);
 	_Parse.GetValue("CLIENT_MAX", &CLIENT_MAX);
 	_Parse.GetValue("AUTH_MAX", &AUTH_MAX);
 	_Parse.GetValue("GAME_MAX", &GAME_MAX);
+	_Parse.GetValue("SERVER_TIMEOUT", &SERVER_TIMEOUT);
+	_Parse.GetValue("SEND", &SENDTHREAD_SLEEP);
+	_Parse.GetValue("AUTH", &AUTHTHREAD_SLEEP);
+	_Parse.GetValue("GAME", &GAMETHREAD_SLEEP);
 	_Parse.GetValue("PACKET_CODE", &PACKET_CODE);
 	_Parse.GetValue("PACKET_KEY1", &PACKET_KEY1);
 	_Parse.GetValue("PACKET_KEY2", &PACKET_KEY2);

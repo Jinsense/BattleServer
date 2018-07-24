@@ -1,6 +1,7 @@
 #ifndef _BATTLESERVER_SERVER_PLAYER_H_
 #define _BATTLESERVER_SERVER_PLAYER_H_
 
+#include "define.h"
 #include "Session.h"
 
 class CGameServer;
@@ -11,6 +12,9 @@ public:
 	CPlayer();
 	~CPlayer();
 
+	//-----------------------------------------------------------
+	//	가상함수
+	//-----------------------------------------------------------
 	void	OnAuth_ClientJoin();
 	void	OnAuth_ClientLeave();
 	void	OnAuth_Packet(CPacket *pPacket);
@@ -18,10 +22,38 @@ public:
 	void	OnGame_ClientLeave();
 	void	OnGame_Packet(CPacket *pPacket);
 	void	OnGame_ClientRelease();
-	bool OnHttp_Result_SelectAccount(string temp);
-	bool OnHttp_Result_SelectContents(string temp);
-	void OnHttp_Result_Success();
+	bool	OnHttp_Result_SelectAccount(string temp);
+	bool	OnHttp_Result_SelectContents(string temp);
+	void	OnHttp_Result_Success();
 
+	//-----------------------------------------------------------
+	//	패킷처리 함수 - AuthPacket
+	//-----------------------------------------------------------
+	void	Auth_ReqLogin(CPacket *pPacket);
+	void	Auth_ReqEnterRoom(CPacket *pPacket);
+
+	//-----------------------------------------------------------
+	//	패킷처리 함수 - GamePacket
+	//-----------------------------------------------------------
+	
+	
+	//-----------------------------------------------------------
+	//	사용자 함수
+	//-----------------------------------------------------------
+	bool	VersionCheck();
+	bool	OverlappLoginCheck();
+	void	HttpJsonCall();
+	bool	AccountnoCheck(INT64 AccountNo);
+	BATTLEROOM * FindWaitRoom(int RoomNo);
+	bool	WaitRoomCheck(bool RoomReady);
+	bool	EnterTokenCheck(char * EnterToken, char * RoomToken);
+	bool	WaitRoomUserNumCheck(BATTLEROOM * Room);
+	void	RoomEnterSuccess(BATTLEROOM * Room);
+	void	RoomEnterPlayer(BATTLEROOM * Room);
+
+	//-----------------------------------------------------------
+	//	기초 함수
+	//-----------------------------------------------------------
 	void	SetGame(CGameServer * pGameServer);
 	void	UTF8toUTF16(const char *szText, WCHAR *szBuf, int iBufLen);
 	void	UTF16toUTF8(WCHAR *szText, char *szBuf, int iBufLen);

@@ -144,6 +144,7 @@
     <ClInclude Include="CommonProtocol.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="CpuUsage.h" />
+    <ClInclude Include="define.h" />
     <ClInclude Include="Dump.h" />
     <ClInclude Include="EtherNet_PDH.h" />
     <ClInclude Include="GameServer.h" />

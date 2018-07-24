@@ -31,6 +31,7 @@ typedef struct st_LanClient
 		RecvQ(LANCLIENT_QUEUESIZE),
 		PacketQ(LANCLIENT_QUEUESIZE),
 		SendFlag(false),
+		bConnect(false),
 		IO_Count(0) {}
 }LANCLIENTSESSION;
 

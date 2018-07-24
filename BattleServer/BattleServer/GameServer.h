@@ -6,6 +6,7 @@
 #include <string>
 #include <time.h>
 
+#include "define.h"
 #include "CommonProtocol.h"
 #include "CpuUsage.h"
 #include "EtherNet_PDH.h"
@@ -15,39 +16,6 @@
 #pragma comment(lib, "Pdh.lib")
 
 using namespace std;
-
-enum enENTERROOM_RESULT
-{
-	SUCCESS = 1,
-	ENTERTOKEN_FAIL = 2,
-	NOT_READYROOM = 3,
-	NOT_FINDROOM = 4,
-	ROOMUSER_MAX = 5,
-};
-
-enum enHTTPTYPE
-{
-	SELECT = 1,
-	UPDATE = 2,
-
-};
-typedef struct st_RoomPlayerInfo
-{
-	UINT64 AccountNo;
-	int  Index;
-}RoomPlayerInfo;
-
-typedef struct st_BattleRoom
-{
-	char Entertoken[32] = { 0, };	//	Entertoken;
-	int RoomNo;			//	방 번호
-	int MaxUser;		//	최대 유저
-	int CurUser;		//	현재 유저
-	std::vector<RoomPlayerInfo> RoomPlayer;		//	방에 있는 유저 목록
-	__int64 ReadyCount;	//	대기방 준비완료 시간
-	bool RoomReady;		//	대기방 준비완료 플래그
-	bool PlayReady;		//	게임준비 완료 플래그
-}BATTLEROOM;
 
 class CGameServer : public CBattleServer
 {
@@ -140,7 +108,13 @@ public:
 	//-----------------------------------------------------------
 	//	사용자 함수 - OnGame_Update
 	//-----------------------------------------------------------
-	
+	void	PlayRoomGameEndCheck();
+	void	PlayRoomDestroyCheck();
+
+	//-----------------------------------------------------------
+	//	더미 테스트 함수
+	//-----------------------------------------------------------
+	void	PlayRoomGameEndChange();	//	PlayRoomMap에 있는 방을 GameEnd 플래그를 true로 변경 
 
 private:
 	void	EntertokenCreate(char *pBuff);

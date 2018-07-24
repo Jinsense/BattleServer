@@ -171,7 +171,6 @@ bool CLanClient::Connect(WCHAR * ServerIP, int Port, bool bNoDelay, int MaxWorke
 	m_Session->RecvQ.Clear();
 	m_Session->PacketQ.Clear();
 	m_Session->SendFlag = false;
-	m_Session->bConnect = true;
 
 	for (auto i = 0; i < MaxWorkerThread; i++)
 	{
@@ -222,6 +221,7 @@ bool CLanClient::Connect(WCHAR * ServerIP, int Port, bool bNoDelay, int MaxWorke
 	OnEnterJoinServer();
 	wprintf(L"[Client :: Connect]		Complete\n");
 	StartRecvPost();
+	m_Session->bConnect = true;
 	return true;
 }
 

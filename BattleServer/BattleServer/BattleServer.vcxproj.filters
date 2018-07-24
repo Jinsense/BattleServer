@@ -162,6 +162,9 @@
     <ClInclude Include="..\json\json-forwards.h">
       <Filter>LIB\Json/Http</Filter>
     </ClInclude>
+    <ClInclude Include="define.h">
+      <Filter>BattleServer\Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="BattleServer_Config.ini">

@@ -15,12 +15,20 @@ int main()
 	if (false == Config.Set())
 		return false;
 
-	CGameServer Server(Config.CLIENT_MAX, Config.SEND, Config.AUTH, Config.GAME);
+	CGameServer Server(Config.CLIENT_MAX, Config.SENDTHREAD_SLEEP, Config.AUTHTHREAD_SLEEP, Config.GAMETHREAD_SLEEP);
 
-	if (false == Server._pMonitor->Connect(Config.MONITOR_BIND_IP, Config.MONITOR_BIND_PORT, true, LANCLIENT_WORKERTHREAD))
+	//if (false == Server._pMonitor->Connect(Config.MONITOR_BIND_IP, Config.MONITOR_BIND_PORT, true, LANCLIENT_WORKERTHREAD))
+	//{
+	//	{
+	//		wprintf(L"[Main :: MonitorClient Connect] Error\n");
+	//		return 0;
+	//	}
+	//}
+
+	if (false == Server._pMaster->Connect(Config.MASTER_BIND_IP, Config.MASTER_BIND_PORT, true, LANCLIENT_WORKERTHREAD))
 	{
 		{
-			wprintf(L"[Main :: MonitorClient Connect] Error\n");
+			wprintf(L"[Main :: MasterServer Connect] Error\n");
 			return 0;
 		}
 	}
