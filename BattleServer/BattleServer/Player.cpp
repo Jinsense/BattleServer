@@ -435,7 +435,7 @@ bool CPlayer::WaitRoomUserNumCheck(BATTLEROOM * Room)
 	{
 		CPacket * CloseRoomPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
-		*CloseRoomPacket >> Type >> Room->RoomNo;
+		*CloseRoomPacket >> Type >> Room->RoomNo >> _pGameServer->_Sequence;
 		_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
 		CloseRoomPacket->Free();
 		Room->RoomReady = true;

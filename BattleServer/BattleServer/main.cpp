@@ -40,7 +40,7 @@ int main()
 			return 0;
 		}
 	}
-
+	Server.ThreadInit();
 	while (bFlag)
 	{
 		In = _getch();

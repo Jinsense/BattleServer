@@ -82,9 +82,10 @@ private:
 	void CompleteSend(DWORD dwTransfered);
 
 public:
-	bool		m_Reconnect;
-	long		m_iRecvPacketTPS;
-	long		m_iSendPacketTPS;
+	bool	m_Release;
+	bool	m_Reconnect;
+	long	m_iRecvPacketTPS;
+	long	m_iSendPacketTPS;
 	LANCLIENTSESSION	*m_Session;
 
 private:

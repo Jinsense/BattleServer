@@ -137,6 +137,7 @@ public:
 	CLanClient * _pMonitor;
 	CLanClient * _pMaster;
 
+	UINT	_Sequence;
 	int		_RoomCnt;
 	int		_BattleServerNo;
 

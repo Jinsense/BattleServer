@@ -41,6 +41,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	_BattleServerNo = NULL;
 	_RoomCnt = 1;
 
+	_Sequence = 1;
 	_TimeStamp = NULL;
 
 	_BattleServer_On = 1;
@@ -62,7 +63,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	PdhAddCounter(_CpuQuery, L"\\Process(MMOGameServer)\\Private Bytes", NULL, &_ProcessPrivateBytes);
 	PdhCollectQueryData(_CpuQuery);
 	
-	ThreadInit();
+	NewConnectTokenCreate();
 }
 
 CGameServer::~CGameServer()
@@ -95,9 +96,12 @@ void CGameServer::OnAuth_Update()
 	//	클라이언트의 요청(패킷수신)외에 기본적으로 항시
 	//	처리되어야 할 컨텐츠 부분 로직
 	//-----------------------------------------------------------
-	WaitRoomSizeCheck();
-	WaitRoomReadyCheck();
-	WaitRoomGameReadyCheck();
+	if (true == _pMaster->IsConnect())
+		WaitRoomSizeCheck();
+	if (0 != _WaitRoomMap.size())
+		WaitRoomReadyCheck();
+	if (0 != _WaitRoomMap.size())
+		WaitRoomGameReadyCheck();
 	return;
 }
 
@@ -143,7 +147,7 @@ void CGameServer::OnRoomLeavePlayer(int RoomNo, INT64 AccountNo)
 			//	해당 방의 유저들에게 해당 플레이어 방에서 나감 패킷 전송
 			CPacket *newPacket = CPacket::Alloc();
 			Type = en_PACKET_CS_GAME_RES_REMOVE_USER;
-			*newPacket >> Type >> RoomNo >> AccountNo;
+			*newPacket >> Type >> RoomNo >> AccountNo >> _Sequence;
 			newPacket->AddRef();
 			for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
 			{
@@ -397,6 +401,13 @@ void CGameServer::LanMasterCheckThead_Update()
 		{
 			NewConnectTokenCreate();
 			start = now;
+			CPacket * pPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_BAT_MAS_REQ_CONNECT_TOKEN;
+			*pPacket >> Type;
+			pPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
+			*pPacket >> _Sequence;
+			_pMaster->SendPacket(pPacket);
+			pPacket->Free();
 		}
 
 		if (false == _pMaster->IsConnect())
@@ -529,7 +540,7 @@ void CGameServer::WaitRoomCreate()
 	EntertokenCreate(Room->Entertoken);
 	Room->CurUser = 0;
 	Room->MaxUser = Config.BATTLEROOM_MAX_USER;
-	Room->RoomNo++;
+	Room->RoomNo = _RoomCnt++;
 	Room->ReadyCount = NULL;
 	Room->RoomReady = false;
 	Room->PlayReady = false;
@@ -542,6 +553,7 @@ void CGameServer::WaitRoomCreate()
 	WORD Type = en_PACKET_BAT_MAS_REQ_CREATED_ROOM;
 	*pPacket << Type << _BattleServerNo << Room->RoomNo << Room->MaxUser;
 	pPacket->PushData((char*)&Room->Entertoken, sizeof(Room->Entertoken));
+	*pPacket >> _Sequence;
 	_pMaster->SendPacket(pPacket);
 	pPacket->Free();
 	return;
@@ -555,19 +567,20 @@ void CGameServer::WaitRoomReadyCheck()
 	//	게임 시작준비 방 전환 플래그 변경 및 변경시간 Count 변수에 저장
 	//	방에 있는 모든 인원에게 대기방 플레이 준비 패킷 전송
 	//-----------------------------------------------------------
+	std::map<int, BATTLEROOM*>::iterator iter;
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
-	for (auto i = _WaitRoomMap.begin(); i != _WaitRoomMap.end(); i++)
+	for (iter = _WaitRoomMap.begin(); iter != _WaitRoomMap.end(); iter++)
 	{
-		if (true == (*i).second->RoomReady)
+		if (true == (*iter).second->RoomReady)
 		{
-			(*i).second->PlayReady = true;
-			(*i).second->ReadyCount = GetTickCount64();
+			(*iter).second->PlayReady = true;
+			(*iter).second->ReadyCount = GetTickCount64();
 			CPacket * pPacket = CPacket::Alloc();
 			WORD Type = en_PACKET_CS_GAME_RES_PLAY_READY;
 			BYTE ReadySec = Config.BATTLEROOM_READYSEC;
-			*pPacket >> Type >> (*i).second->RoomNo >> ReadySec;
+			*pPacket >> Type >> (*iter).second->RoomNo >> ReadySec;
 			pPacket->AddRef();
-			for (auto j = (*i).second->RoomPlayer.begin(); j != (*i).second->RoomPlayer.end(); j++)
+			for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
 			{
 				_pSessionArray[(*j).Index]->SendPacket(pPacket);
 				pPacket->Free();

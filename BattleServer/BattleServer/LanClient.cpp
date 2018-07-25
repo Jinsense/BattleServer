@@ -14,6 +14,7 @@ CLanClient::CLanClient() :
 {
 	m_Session = new LANCLIENTSESSION;
 
+	m_Release = false;
 	m_Reconnect = false;
 	setlocale(LC_ALL, "Korean");
 
@@ -37,12 +38,13 @@ void CLanClient::OnEnterJoinServer()
 	CPacket *pPacket = CPacket::Alloc();
 
 	WORD Type = en_PACKET_BAT_MAS_REQ_SERVER_ON;
+	WORD BattleServerPort = Config.BATTLE_BIND_PORT;
 	char MasterToken[32] = { 0, };
 	memcpy_s(&MasterToken, sizeof(MasterToken), &Config.MASTERTOKEN, sizeof(MasterToken));
 	
 	*pPacket << Type;
 	pPacket->PushData((char*)&Config.BATTLE_BIND_IP, sizeof(Config.BATTLE_BIND_IP));
-	*pPacket << Config.BATTLE_BIND_PORT;
+	*pPacket << BattleServerPort;
 	pPacket->PushData((char*)&_pGameServer->_CurConnectToken, sizeof(_pGameServer->_CurConnectToken));
 	pPacket->PushData((char*)&MasterToken, sizeof(MasterToken));
 	pPacket->PushData((char*)&Config.CHAT_BIND_IP, sizeof(Config.CHAT_BIND_IP));
@@ -50,7 +52,6 @@ void CLanClient::OnEnterJoinServer()
 
 	SendPacket(pPacket);
 	pPacket->Free();
-	m_Session->bConnect = true;
 	return;
 }
 
@@ -59,7 +60,7 @@ void CLanClient::OnLeaveServer()
 	//	서버와의 연결이 끊어졌을 때
 	m_Session->bConnect = false;
 	m_Reconnect = true;
-
+	m_Release = true;
 	return;
 }
 
@@ -78,6 +79,7 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 	if (Type == en_PACKET_BAT_MAS_RES_SERVER_ON)
 	{
 		*pPacket >> _pGameServer->_BattleServerNo;
+		m_Session->bConnect = true;
 		//	마스터 서버 종료로 인한 재연결인지 확인
 		if (true == m_Reconnect)
 		{
@@ -221,7 +223,6 @@ bool CLanClient::Connect(WCHAR * ServerIP, int Port, bool bNoDelay, int MaxWorke
 	OnEnterJoinServer();
 	wprintf(L"[Client :: Connect]		Complete\n");
 	StartRecvPost();
-	m_Session->bConnect = true;
 	return true;
 }
 
@@ -248,7 +249,8 @@ bool CLanClient::Disconnect()
 		pPacket->Free();
 		m_Session->PacketQ.Dequeue(sizeof(CPacket*));
 	}
-	m_Session->bConnect = false;
+	OnLeaveServer();
+//	m_Session->bConnect = false;
 
 	WaitForMultipleObjects(LANCLIENT_WORKERTHREAD, m_hWorker_Thread, false, INFINITE);
 
@@ -282,7 +284,7 @@ void CLanClient::WorkerThread_Update()
 {
 	DWORD retval;
 
-	while (m_Session->bConnect)
+	while (!m_Release)
 	{
 		//	초기화 필수
 		OVERLAPPED * pOver = NULL;
