@@ -13,6 +13,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	srand(time(NULL));
 	InitializeSRWLock(&_WaitRoom_lock);
 	InitializeSRWLock(&_PlayRoom_lock);
+	InitializeSRWLock(&_ClosedRoom_lock);
 	_BattleRoomPool = new CMemoryPool<BATTLEROOM>();
 	_HttpPool = new CMemoryPool<CRingBuffer>();
 	_bMonitor = true;
@@ -40,6 +41,8 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 
 	_BattleServerNo = NULL;
 	_RoomCnt = 1;
+	_WaitRoomCount = NULL;
+	_PlayRoomCount = NULL;
 
 	_Sequence = 1;
 	_TimeStamp = NULL;
@@ -78,6 +81,7 @@ bool CGameServer::ThreadInit()
 	_hLanMasterCheckThread = (HANDLE)_beginthreadex(NULL, 0, &LanMasterCheckThread, (LPVOID)this, 0, NULL);
 	for (auto i = 0; i < 10; i++)
 		_hHttpSendThread[i] = (HANDLE)_beginthreadex(NULL, 0, &HttpSendThread, (LPVOID)this, 0, NULL);
+
 	_hHttpEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	
 	return true;
@@ -98,10 +102,8 @@ void CGameServer::OnAuth_Update()
 	//-----------------------------------------------------------
 	if (true == _pMaster->IsConnect())
 		WaitRoomSizeCheck();
-	if (0 != _WaitRoomMap.size())
-		WaitRoomReadyCheck();
-	if (0 != _WaitRoomMap.size())
-		WaitRoomGameReadyCheck();
+	WaitRoomReadyCheck();
+	WaitRoomGameReadyCheck();
 	return;
 }
 
@@ -131,6 +133,7 @@ void CGameServer::OnRoomLeavePlayer(int RoomNo, INT64 AccountNo)
 	std::map<int, BATTLEROOM*>::iterator iter;
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
 	iter = _WaitRoomMap.find(RoomNo);
+	ReleaseSRWLockExclusive(&_WaitRoom_lock);
 	//	대기방이 준비완료 플래그인지 검사
 	if (_WaitRoomMap.end() == iter)
 		return;
@@ -141,25 +144,37 @@ void CGameServer::OnRoomLeavePlayer(int RoomNo, INT64 AccountNo)
 			//	마스터 서버로 배틀 서버의 대기방에서 유저가 나감 패킷 전송
 			CPacket *pPacket = CPacket::Alloc();
 			WORD Type = en_PACKET_BAT_MAS_REQ_LEFT_USER;
-			*pPacket >> Type >> RoomNo >> AccountNo;
+			*pPacket << Type << RoomNo << AccountNo;
 			_pMaster->SendPacket(pPacket);
 			pPacket->Free();
+
+			//	방의 리스트에서 해당 유저 삭제
+			for (auto i = (*iter).second->RoomPlayer.begin(); i != (*iter).second->RoomPlayer.end();)
+			{
+				if (AccountNo == (*i)->AccountNo)
+				{
+					i = (*iter).second->RoomPlayer.erase(i);
+					break;
+				}
+				else
+					i++;
+			}
+
 			//	해당 방의 유저들에게 해당 플레이어 방에서 나감 패킷 전송
 			CPacket *newPacket = CPacket::Alloc();
 			Type = en_PACKET_CS_GAME_RES_REMOVE_USER;
-			*newPacket >> Type >> RoomNo >> AccountNo >> _Sequence;
+			*newPacket << Type << RoomNo << AccountNo << _Sequence;
 			newPacket->AddRef();
 			for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
 			{
-				if (AccountNo == (*j).AccountNo)
+				if (AccountNo == (*j)->AccountNo)
 					continue;
-				_pSessionArray[(*j).Index]->SendPacket(newPacket);
+				_pSessionArray[(*j)->Index]->SendPacket(newPacket);
 				newPacket->Free();
 			}
 			newPacket->Free();
 		}
 	}	
-	ReleaseSRWLockExclusive(&_WaitRoom_lock);
 }
 
 bool CGameServer::MonitorOnOff()
@@ -202,7 +217,8 @@ bool CGameServer::MonitorThread_update()
 			wprintf(L"////////////////////////////////////////////////////////////////////////////////\n");
 			wprintf(L"	%d/%d/%d %d:%d:%d\n\n", pTime->tm_year + 1900, pTime->tm_mon + 1,
 				pTime->tm_mday, pTime->tm_hour, pTime->tm_min, pTime->tm_sec);
-
+			
+			wprintf(L"	GameServer CPU		:	%.2f%%\n", _Cpu.ProcessTotal());
 			wprintf(L"	SessionALL		:	%d\n", _Monitor_SessionAllMode);
 			wprintf(L"	SessionAuth 		:	%d\n", _Monitor_SessionAuthMode);
 			wprintf(L"	SessionGame		:	%d\n\n", _Monitor_SessionGameMode);
@@ -219,7 +235,9 @@ bool CGameServer::MonitorThread_update()
 			wprintf(L"	MemoryPool Alloc	:	%I64d\n", CPacket::GetAllocPool());
 			wprintf(L"	Alloc / Free		:	%d\n\n", CPacket::_UseCount);
 
-			wprintf(L"	GameServer CPU		:	%.2f%%\n", _Cpu.ProcessTotal());
+			wprintf(L"	WaitRoom		:	%d%\n", _WaitRoomCount);
+			wprintf(L"	PlayRoom		:	%d%\n", _PlayRoomCount);
+			wprintf(L"	BattleRoomPool UseCount	:	%d%\n", _BattleRoomPool->GetUseCount());
 		}
 		_Monitor_AcceptSocket = 0;
 		_Monitor_Counter_PacketSend = 0;
@@ -403,9 +421,9 @@ void CGameServer::LanMasterCheckThead_Update()
 			start = now;
 			CPacket * pPacket = CPacket::Alloc();
 			WORD Type = en_PACKET_BAT_MAS_REQ_CONNECT_TOKEN;
-			*pPacket >> Type;
+			*pPacket << Type;
 			pPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
-			*pPacket >> _Sequence;
+			*pPacket << _Sequence;
 			_pMaster->SendPacket(pPacket);
 			pPacket->Free();
 		}
@@ -527,6 +545,7 @@ void CGameServer::WaitRoomSizeCheck()
 	while (Config.BATTLEROOM_DEFAULT_NUM > _WaitRoomMap.size())
 	{
 		WaitRoomCreate();
+		Sleep(10);
 	}
 	return;
 }
@@ -546,14 +565,15 @@ void CGameServer::WaitRoomCreate()
 	Room->PlayReady = false;
 	Room->GameEnd = false;
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
-	_WaitRoomMap.insert(make_pair(Room->RoomNo, Room));
+	_WaitRoomMap.insert(pair<int, BATTLEROOM*>(Room->RoomNo, Room));
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
+	InterlockedIncrement(&_WaitRoomCount);
 
 	CPacket *pPacket = CPacket::Alloc();
 	WORD Type = en_PACKET_BAT_MAS_REQ_CREATED_ROOM;
 	*pPacket << Type << _BattleServerNo << Room->RoomNo << Room->MaxUser;
 	pPacket->PushData((char*)&Room->Entertoken, sizeof(Room->Entertoken));
-	*pPacket >> _Sequence;
+	*pPacket << _Sequence;
 	_pMaster->SendPacket(pPacket);
 	pPacket->Free();
 	return;
@@ -569,7 +589,7 @@ void CGameServer::WaitRoomReadyCheck()
 	//-----------------------------------------------------------
 	std::map<int, BATTLEROOM*>::iterator iter;
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
-	for (iter = _WaitRoomMap.begin(); iter != _WaitRoomMap.end(); iter++)
+	for (iter = _WaitRoomMap.begin(); iter != _WaitRoomMap.end();iter++)
 	{
 		if (true == (*iter).second->RoomReady)
 		{
@@ -578,15 +598,14 @@ void CGameServer::WaitRoomReadyCheck()
 			CPacket * pPacket = CPacket::Alloc();
 			WORD Type = en_PACKET_CS_GAME_RES_PLAY_READY;
 			BYTE ReadySec = Config.BATTLEROOM_READYSEC;
-			*pPacket >> Type >> (*iter).second->RoomNo >> ReadySec;
+			*pPacket << Type << (*iter).second->RoomNo << ReadySec;
 			pPacket->AddRef();
 			for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
 			{
-				_pSessionArray[(*j).Index]->SendPacket(pPacket);
+				_pSessionArray[(*j)->Index]->SendPacket(pPacket);
 				pPacket->Free();
 			}
 			pPacket->Free();
-			continue;
 		}
 	}
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
@@ -600,39 +619,45 @@ void CGameServer::WaitRoomGameReadyCheck()
 	//	WaitRoomMap에서 해당 방을 삭제 후 PlayRoomMap에 추가 및 해당 방의 모든 인원에게 플레이 시작 패킷 전송
 	//-----------------------------------------------------------
 	__int64 now = GetTickCount64();
-	std::map<int, BATTLEROOM*> TempMap;
+//	std::map<int, BATTLEROOM*> TempMap;
 	std::map<int, BATTLEROOM*>::iterator iter;
+	
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
 	for (iter = _WaitRoomMap.begin(); iter != _WaitRoomMap.end();)
 	{
 		if (true == (*iter).second->PlayReady && now - (*iter).second->ReadyCount > (Config.BATTLEROOM_READYSEC * 1000))
 		{
 			TempMap.insert(*iter);
-			_WaitRoomMap.erase(iter++);
+			iter = _WaitRoomMap.erase(iter);
+			InterlockedDecrement(&_WaitRoomCount);
 		}
 		else
 			iter++;
 	}
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
-	//	TempMap의 유저들에게 패킷을 전송 후 PlayMap에 추가
+
+//	TempMap의 유저들에게 패킷을 전송 후 PlayMap에 추가
 	for (iter = TempMap.begin(); iter != TempMap.end();)
 	{
 		CPacket * pPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_CS_GAME_RES_PLAY_START;
-		*pPacket >> Type >> (*iter).second->RoomNo;
+		*pPacket << Type << (*iter).second->RoomNo;
 		pPacket->AddRef();
 		for (auto i = (*iter).second->RoomPlayer.begin(); i != (*iter).second->RoomPlayer.end(); i++)
 		{
-			_pSessionArray[(*i).Index]->_AuthToGameFlag = true;
-			_pSessionArray[(*i).Index]->SendPacket(pPacket);
+			_pSessionArray[(*i)->Index]->_AuthToGameFlag = true;
+			_pSessionArray[(*i)->Index]->SendPacket(pPacket);
 			pPacket->Free();
 		}
 		pPacket->Free();
 		AcquireSRWLockExclusive(&_PlayRoom_lock);
 		_PlayRoomMap.insert(*iter);
 		ReleaseSRWLockExclusive(&_PlayRoom_lock);
-		TempMap.erase(iter++);
+		InterlockedIncrement(&_PlayRoomCount);
+		iter = TempMap.erase(iter);
 	}
+
+	
 	return;
 }
 
@@ -646,10 +671,10 @@ void CGameServer::PlayRoomGameEndCheck()
 	{
 		if (true == (*i).second->GameEnd)
 		{
-			for (auto j = (*i).second->RoomPlayer.begin(); j != (*i).second->RoomPlayer.end();)
+			for (auto j = (*i).second->RoomPlayer.begin(); j != (*i).second->RoomPlayer.end(); j++)
 			{
-				_pSessionArray[(*j).Index]->Disconnect();
-//				(*i).second->RoomPlayer.erase(j);
+				_pSessionArray[(*j)->Index]->Disconnect();
+//				j = (*i).second->RoomPlayer.erase(j);
 			}
 		}
 	}
@@ -666,10 +691,13 @@ void CGameServer::PlayRoomDestroyCheck()
 	{
 		if (0 == (*i).second->RoomPlayer.size())
 		{
-			_PlayRoomMap.erase(i);
+			_BattleRoomPool->Free((*i).second);
+			i = _PlayRoomMap.erase(i);
+			InterlockedDecrement(&_PlayRoomCount);
 		}
 		else
 			i++;
+			
 	}
 	ReleaseSRWLockExclusive(&_PlayRoom_lock);
 	return;

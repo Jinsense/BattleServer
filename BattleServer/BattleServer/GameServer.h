@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <time.h>
+#include <list>
 
 #include "define.h"
 #include "CommonProtocol.h"
@@ -121,10 +122,13 @@ private:
 	void	NewConnectTokenCreate();
 
 public:
-	std::map<int, BATTLEROOM*> _WaitRoomMap;
+//	std::map<int, BATTLEROOM*> _WaitRoomMap;
 	std::map<int, BATTLEROOM*> _PlayRoomMap;
-	SRWLOCK		_WaitRoom_lock;
+	std::map<int, BATTLEROOM*> TempMap;
+	std::list<int> _ClosedRoomlist;
+//	SRWLOCK		_WaitRoom_lock;
 	SRWLOCK		_PlayRoom_lock;
+	SRWLOCK		_ClosedRoom_lock;
 	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
 	CMemoryPool<CRingBuffer> *_HttpPool;
 	CLockFreeQueue<CRingBuffer*> _HttpQueue;
@@ -139,6 +143,8 @@ public:
 
 	UINT	_Sequence;
 	int		_RoomCnt;
+	long	_WaitRoomCount;
+	long	_PlayRoomCount;
 	int		_BattleServerNo;
 
 	int		_TimeStamp;						//	TimeStamp	

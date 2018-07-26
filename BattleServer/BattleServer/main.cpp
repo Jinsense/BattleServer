@@ -3,7 +3,6 @@
 #include "Config.h"
 #include "GameServer.h"
 
-
 CConfig Config;
 
 int main()

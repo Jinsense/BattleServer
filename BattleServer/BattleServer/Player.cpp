@@ -148,6 +148,7 @@ bool CPlayer::OnHttp_Result_SelectAccount(string temp)
 {
 	Json::Reader reader;
 	Json::Value result;
+
 	bool Res = reader.parse(temp, result);
 	if (!Res)
 	{
@@ -256,7 +257,7 @@ void CPlayer::Auth_ReqLogin(CPacket *pPacket)
 	
 	if (false == OverlappLoginCheck())
 		return;
-
+	HttpJsonCall();
 	return;
 }
 
@@ -370,7 +371,7 @@ BATTLEROOM * CPlayer::FindWaitRoom(int RoomNo)
 		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 		WORD Result = NOT_FINDROOM;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket >> _AccountNo >> RoomNo >> MaxUser >> Result;
+		*newPacket << _AccountNo << RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return nullptr;
@@ -388,7 +389,7 @@ bool CPlayer::WaitRoomCheck(bool RoomReady)
 		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 		WORD Result = NOT_READYROOM;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket >> _AccountNo >> _RoomNo >> MaxUser >> Result;
+		*newPacket << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -406,7 +407,7 @@ bool CPlayer::EnterTokenCheck(char * EnterToken, char * RoomToken)
 		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 		WORD Result = ENTERTOKEN_FAIL;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket >> _AccountNo >> _RoomNo >> MaxUser >> Result;
+		*newPacket << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -424,7 +425,7 @@ bool CPlayer::WaitRoomUserNumCheck(BATTLEROOM * Room)
 		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 		WORD Result = ROOMUSER_MAX;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket >> _AccountNo >> _RoomNo >> MaxUser >> Result;
+		*newPacket << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -433,9 +434,13 @@ bool CPlayer::WaitRoomUserNumCheck(BATTLEROOM * Room)
 	//	방에 입장 인원이 꽉찼을 경우 마스터 서버로 대기 방 닫힘 패킷 전송
 	if (Room->CurUser == Room->MaxUser)
 	{
+		AcquireSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
+		_pGameServer->_ClosedRoomlist.push_back(Room->RoomNo);
+		ReleaseSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
+
 		CPacket * CloseRoomPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
-		*CloseRoomPacket >> Type >> Room->RoomNo >> _pGameServer->_Sequence;
+		*CloseRoomPacket << Type << Room->RoomNo << _pGameServer->_Sequence;
 		_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
 		CloseRoomPacket->Free();
 		Room->RoomReady = true;
@@ -448,16 +453,16 @@ void CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
 	//	_RoomNo에 방 번호와 RoomPlayer 구조체에 Session Index번호 지정
 	//	현재는 락을 걸지 않았지만 차후 문제가 생길경우 락을 추가하여 해결하자
 	//	_RoomNo = RoomNo;
-	RoomPlayerInfo Info;
-	Info.AccountNo = _AccountNo;
-	Info.Index = _iArrayIndex;
-	Room->RoomPlayer.push_back(Info);
+	RoomPlayerInfo * pInfo;
+	pInfo->AccountNo = _AccountNo;
+	pInfo->Index = _iArrayIndex;
+//	Room->RoomPlayer.push_back(Info);
 	//	방 입장 응답 패킷 전송
 	CPacket * newPacket = CPacket::Alloc();
 	WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 	WORD Result = enENTERROOM_RESULT::SUCCESS;
 	WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-	*newPacket >> _AccountNo >> _RoomNo >> MaxUser >> Result;
+	*newPacket << _AccountNo << _RoomNo << MaxUser << Result;
 	SendPacket(newPacket);
 	newPacket->Free();
 	return;
@@ -469,13 +474,13 @@ void CPlayer::RoomEnterPlayer(BATTLEROOM * Room)
 	//	새로 접속한 클라이언트에게도 패킷을 보내줌
 	//	GameServer.cpp에서 패킷을 보내려면 Index번호가 필요함
 	CPacket * AddPacket = CPacket::Alloc();
-	*AddPacket >> _RoomNo >> _AccountNo;
+	*AddPacket << _RoomNo << _AccountNo;
 	AddPacket->PushData((char*)&_Nickname, sizeof(_Nickname));
-	*AddPacket >> _Playcount >> _Playtime >> _Kill >> _Die >> _Win;
+	*AddPacket << _Playcount << _Playtime << _Kill << _Die << _Win;
 	AddPacket->AddRef();
 	for (auto j = Room->RoomPlayer.begin(); j != Room->RoomPlayer.end(); j++)
 	{
-		_pBattleServer->_pSessionArray[(*j).Index]->SendPacket(AddPacket);
+		_pBattleServer->_pSessionArray[(*j)->Index]->SendPacket(AddPacket);
 		AddPacket->Free();
 	}
 	AddPacket->Free();

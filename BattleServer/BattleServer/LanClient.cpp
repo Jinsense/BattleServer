@@ -78,28 +78,7 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 	//-------------------------------------------------------------
 	if (Type == en_PACKET_BAT_MAS_RES_SERVER_ON)
 	{
-		*pPacket >> _pGameServer->_BattleServerNo;
-		m_Session->bConnect = true;
-		//	마스터 서버 종료로 인한 재연결인지 확인
-		if (true == m_Reconnect)
-		{
-			//	현재 생성된 대기방 리스트를 다시 전송해 준다.
-			//	이때 유저가 있는 방은 MaxUser 수치를 계산해서 전송해준다.
-			AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
-			for (auto i = _pGameServer->_WaitRoomMap.begin(); i != _pGameServer->_WaitRoomMap.end(); i++)
-			{
-				if (false == (*i).second->RoomReady && 0 > (*i).second->MaxUser - (*i).second->CurUser)
-				{
-					CPacket *pPacket = CPacket::Alloc();
-					WORD Type = en_PACKET_BAT_MAS_REQ_CREATED_ROOM;
-					*pPacket << Type << _pGameServer->_BattleServerNo << (*i).second->RoomNo << ((*i).second->MaxUser - (*i).second->CurUser);
-					SendPacket(pPacket);
-					pPacket->Free();
-				}
-			}
-			ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
-		}
-
+		ResBattleOn(pPacket);
 		return;
 	}
 	//-------------------------------------------------------------
@@ -108,6 +87,7 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 	//-------------------------------------------------------------
 	else if (Type == en_PACKET_BAT_MAS_RES_CONNECT_TOKEN)
 	{
+		ResBattleConnectToken(pPacket);
 		return;
 	}
 	//-------------------------------------------------------------
@@ -116,11 +96,8 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 	//-------------------------------------------------------------
 	else if (Type == en_PACKET_BAT_MAS_RES_CREATED_ROOM)
 	{
-		int RoomNo = NULL;
-		*pPacket >> RoomNo;
-		
-		//	Map에 있는 RoomNo인지 검사 - 없을 경우 로그 후 방 닫힘 패킷 전송
-		//	혹은 신규 대기방 리스트 생성한 후 해당 리스트에서 방 삭제 ( 없을 경우 로그 및 에러 or 크래쉬 )
+		ResBattleCreateRoom(pPacket);
+		return;
 	}
 	//-------------------------------------------------------------
 	//	패킷 처리 - 배틀 서버 대기방 닫힘 확인
@@ -128,9 +105,8 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 	//-------------------------------------------------------------
 	else if (Type == en_PACKET_BAT_MAS_RES_CLOSED_ROOM)
 	{
-
-		//	배틀 서버 대기방 닫힘 리스트 생성 후 해당 리스트에서 삭제 
-		//	없을 경우 로그 및 에러 혹은 크래쉬
+		ResBattleClosedRoom(pPacket);
+		return;
 	}
 	//-------------------------------------------------------------
 	//	패킷 처리 - 배틀 서버 대기방 유저 나감 확인
@@ -138,7 +114,8 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 	//-------------------------------------------------------------
 	else if (Type == en_PACKET_BAT_MAS_RES_LEFT_USER)
 	{
-
+		ResBattleLeftUser(pPacket);
+		return;
 	}
 
 	return;
@@ -173,6 +150,7 @@ bool CLanClient::Connect(WCHAR * ServerIP, int Port, bool bNoDelay, int MaxWorke
 	m_Session->RecvQ.Clear();
 	m_Session->PacketQ.Clear();
 	m_Session->SendFlag = false;
+	m_Release = false;
 
 	for (auto i = 0; i < MaxWorkerThread; i++)
 	{
@@ -556,4 +534,95 @@ void CLanClient::SendPost()
 			}
 		}
 	} while (0 != m_Session->SendQ.GetUseCount());
+}
+
+void CLanClient::ResBattleOn(CPacket * pPacket)
+{
+	*pPacket >> _pGameServer->_BattleServerNo;
+	//	마스터 서버 종료로 인한 재연결인지 확인
+	if (true == m_Reconnect)
+	{
+		//	현재 생성된 대기방 리스트를 다시 전송해 준다.
+		//	이때 유저가 있는 방은 MaxUser 수치를 계산해서 전송해준다.
+		AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+		for (auto i = _pGameServer->_WaitRoomMap.begin(); i != _pGameServer->_WaitRoomMap.end(); i++)
+		{
+			if (false == (*i).second->RoomReady && 0 < (*i).second->MaxUser - (*i).second->CurUser)
+			{
+				CPacket *pPacket = CPacket::Alloc();
+				WORD Type = en_PACKET_BAT_MAS_REQ_CREATED_ROOM;
+				*pPacket << Type << _pGameServer->_BattleServerNo << (*i).second->RoomNo << ((*i).second->MaxUser - (*i).second->CurUser);
+				pPacket->PushData((char*)&(*i).second->Entertoken, sizeof((*i).second->Entertoken));
+				*pPacket << _pGameServer->_Sequence;
+				SendPacket(pPacket);
+				pPacket->Free();
+			}
+		}
+		ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	}
+	
+	m_Session->bConnect = true;
+	return;
+}
+
+void CLanClient::ResBattleConnectToken(CPacket * pPacket)
+{
+
+	return;
+}
+
+void CLanClient::ResBattleCreateRoom(CPacket * pPacket)
+{
+	int RoomNo = NULL;
+	*pPacket >> RoomNo;
+	//	Map에 있는 RoomNo인지 검사 - 없을 경우 로그 후 방 닫힘 패킷 전송
+	//	혹은 신규 대기방 리스트 생성한 후 해당 리스트에서 방 삭제 ( 없을 경우 로그 및 에러 or 크래쉬 )
+	/*std::map<int, BATTLEROOM*>::iterator iter;
+	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	iter = _pGameServer->_WaitRoomMap.find(RoomNo);
+	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	if (iter == _pGameServer->_WaitRoomMap.end())
+	{
+		_pGameServer->_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"CreateRoomRes - RoomNo is Not Find [RoomNo : %d]"), RoomNo);
+		CPacket * CloseRoomPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
+		*CloseRoomPacket << Type << RoomNo << _pGameServer->_Sequence;
+		_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
+		CloseRoomPacket->Free();
+	}*/
+	return;
+}
+
+void CLanClient::ResBattleClosedRoom(CPacket * pPacket)
+{
+	//	배틀 서버 대기방 닫힘 리스트 생성 후 해당 리스트에서 삭제 
+	//	없을 경우 로그 및 에러 혹은 크래쉬
+	int RoomNo = NULL;
+	*pPacket >> RoomNo;
+	std::list<int>::iterator iter;
+	AcquireSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
+	for (iter = _pGameServer->_ClosedRoomlist.begin(); iter != _pGameServer->_ClosedRoomlist.end();)
+	{
+		if ((*iter) == RoomNo)
+		{
+			iter = _pGameServer->_ClosedRoomlist.erase(iter);
+			break;
+		}
+		else if (iter == _pGameServer->_ClosedRoomlist.end())
+		{
+			_pGameServer->_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"ClosedRoomRes - RoomNo is Not Find [RoomNo : %d]"), RoomNo);
+			iter++;
+			break;
+		}
+		else
+			iter++;
+	}	
+	ReleaseSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
+	return;
+}
+
+void CLanClient::ResBattleLeftUser(CPacket * pPacket)
+{
+
+	return;
 }
