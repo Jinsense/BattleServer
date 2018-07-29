@@ -3,12 +3,12 @@
 #include <iostream>
 #include <windows.h>
 
-#include "LanClient.h"
+#include "LanMasterClient.h"
 #include "GameServer.h"
 
 using namespace std;
 
-CLanClient::CLanClient() :
+CLanMasterClient::CLanMasterClient() :
 	m_iRecvPacketTPS(NULL),
 	m_iSendPacketTPS(NULL)
 {
@@ -21,18 +21,18 @@ CLanClient::CLanClient() :
 	m_hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
 }
 
-CLanClient::~CLanClient()
+CLanMasterClient::~CLanMasterClient()
 {
 	delete m_Session;
 }
 
-void CLanClient::Constructor(CGameServer *pGameServer)
+void CLanMasterClient::Constructor(CGameServer *pGameServer)
 {
 	_pGameServer = pGameServer;
 	return;
 }
 
-void CLanClient::OnEnterJoinServer()
+void CLanMasterClient::OnEnterJoinServer()
 {
 	//	서버와의 연결 성공 후
 	CPacket *pPacket = CPacket::Alloc();
@@ -41,7 +41,7 @@ void CLanClient::OnEnterJoinServer()
 	WORD BattleServerPort = Config.BATTLE_BIND_PORT;
 	char MasterToken[32] = { 0, };
 	memcpy_s(&MasterToken, sizeof(MasterToken), &Config.MASTERTOKEN, sizeof(MasterToken));
-	
+
 	*pPacket << Type;
 	pPacket->PushData((char*)&Config.BATTLE_BIND_IP, sizeof(Config.BATTLE_BIND_IP));
 	*pPacket << BattleServerPort;
@@ -55,7 +55,7 @@ void CLanClient::OnEnterJoinServer()
 	return;
 }
 
-void CLanClient::OnLeaveServer()
+void CLanMasterClient::OnLeaveServer()
 {
 	//	서버와의 연결이 끊어졌을 때
 	m_Session->bConnect = false;
@@ -64,7 +64,7 @@ void CLanClient::OnLeaveServer()
 	return;
 }
 
-void CLanClient::OnLanRecv(CPacket *pPacket)
+void CLanMasterClient::OnLanRecv(CPacket *pPacket)
 {
 	//-------------------------------------------------------------
 	//	패킷 처리 - 컨텐츠 처리
@@ -121,29 +121,29 @@ void CLanClient::OnLanRecv(CPacket *pPacket)
 	return;
 }
 
-void CLanClient::OnLanSend(int SendSize)
+void CLanMasterClient::OnLanSend(int SendSize)
 {
 	//	패킷 송신 완료 후
 
 	return;
 }
 
-void CLanClient::OnWorkerThreadBegin()
+void CLanMasterClient::OnWorkerThreadBegin()
 {
 
 }
 
-void CLanClient::OnWorkerThreadEnd()
+void CLanMasterClient::OnWorkerThreadEnd()
 {
 
 }
 
-void CLanClient::OnError(int ErrorCode, WCHAR *pMsg)
+void CLanMasterClient::OnError(int ErrorCode, WCHAR *pMsg)
 {
 
 }
 
-bool CLanClient::Connect(WCHAR * ServerIP, int Port, bool bNoDelay, int MaxWorkerThread)
+bool CLanMasterClient::Connect(WCHAR * ServerIP, int Port, bool bNoDelay, int MaxWorkerThread)
 {
 	wprintf(L"[Client :: ClientInit]	Start\n");
 
@@ -204,7 +204,7 @@ bool CLanClient::Connect(WCHAR * ServerIP, int Port, bool bNoDelay, int MaxWorke
 	return true;
 }
 
-bool CLanClient::Disconnect()
+bool CLanMasterClient::Disconnect()
 {
 	closesocket(m_Session->sock);
 	m_Session->sock = INVALID_SOCKET;
@@ -228,7 +228,7 @@ bool CLanClient::Disconnect()
 		m_Session->PacketQ.Dequeue(sizeof(CPacket*));
 	}
 	OnLeaveServer();
-//	m_Session->bConnect = false;
+	//	m_Session->bConnect = false;
 
 	WaitForMultipleObjects(LANCLIENT_WORKERTHREAD, m_hWorker_Thread, false, INFINITE);
 
@@ -242,12 +242,12 @@ bool CLanClient::Disconnect()
 	return true;
 }
 
-bool CLanClient::IsConnect()
+bool CLanMasterClient::IsConnect()
 {
 	return m_Session->bConnect;
 }
 
-bool CLanClient::SendPacket(CPacket *pPacket)
+bool CLanMasterClient::SendPacket(CPacket *pPacket)
 {
 	m_iSendPacketTPS++;
 	pPacket->AddRef();
@@ -258,7 +258,7 @@ bool CLanClient::SendPacket(CPacket *pPacket)
 	return true;
 }
 
-void CLanClient::WorkerThread_Update()
+void CLanMasterClient::WorkerThread_Update()
 {
 	DWORD retval;
 
@@ -322,7 +322,7 @@ void CLanClient::WorkerThread_Update()
 
 }
 
-void CLanClient::CompleteRecv(DWORD dwTransfered)
+void CLanMasterClient::CompleteRecv(DWORD dwTransfered)
 {
 	m_Session->RecvQ.Enqueue(dwTransfered);
 	WORD _wPayloadSize = 0;
@@ -351,7 +351,7 @@ void CLanClient::CompleteRecv(DWORD dwTransfered)
 	RecvPost();
 }
 
-void CLanClient::CompleteSend(DWORD dwTransfered)
+void CLanMasterClient::CompleteSend(DWORD dwTransfered)
 {
 	CPacket * pPacket[LANCLIENT_WSABUFNUM];
 	int Num = m_Session->Send_Count;
@@ -371,7 +371,7 @@ void CLanClient::CompleteSend(DWORD dwTransfered)
 	SendPost();
 }
 
-void CLanClient::StartRecvPost()
+void CLanMasterClient::StartRecvPost()
 {
 	DWORD flags = 0;
 	ZeroMemory(&m_Session->RecvOver, sizeof(m_Session->RecvOver));
@@ -414,7 +414,7 @@ void CLanClient::StartRecvPost()
 	return;
 }
 
-void CLanClient::RecvPost()
+void CLanMasterClient::RecvPost()
 {
 	int Count = InterlockedIncrement(&m_Session->IO_Count);
 	if (1 == Count)
@@ -465,7 +465,7 @@ void CLanClient::RecvPost()
 	return;
 }
 
-void CLanClient::SendPost()
+void CLanMasterClient::SendPost()
 {
 	do
 	{
@@ -536,7 +536,7 @@ void CLanClient::SendPost()
 	} while (0 != m_Session->SendQ.GetUseCount());
 }
 
-void CLanClient::ResBattleOn(CPacket * pPacket)
+void CLanMasterClient::ResBattleOn(CPacket * pPacket)
 {
 	*pPacket >> _pGameServer->_BattleServerNo;
 	//	마스터 서버 종료로 인한 재연결인지 확인
@@ -560,18 +560,17 @@ void CLanClient::ResBattleOn(CPacket * pPacket)
 		}
 		ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	}
-	
 	m_Session->bConnect = true;
 	return;
 }
 
-void CLanClient::ResBattleConnectToken(CPacket * pPacket)
+void CLanMasterClient::ResBattleConnectToken(CPacket * pPacket)
 {
 
 	return;
 }
 
-void CLanClient::ResBattleCreateRoom(CPacket * pPacket)
+void CLanMasterClient::ResBattleCreateRoom(CPacket * pPacket)
 {
 	int RoomNo = NULL;
 	*pPacket >> RoomNo;
@@ -583,17 +582,17 @@ void CLanClient::ResBattleCreateRoom(CPacket * pPacket)
 	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	if (iter == _pGameServer->_WaitRoomMap.end())
 	{
-		_pGameServer->_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"CreateRoomRes - RoomNo is Not Find [RoomNo : %d]"), RoomNo);
-		CPacket * CloseRoomPacket = CPacket::Alloc();
-		WORD Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
-		*CloseRoomPacket << Type << RoomNo << _pGameServer->_Sequence;
-		_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
-		CloseRoomPacket->Free();
+	_pGameServer->_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"CreateRoomRes - RoomNo is Not Find [RoomNo : %d]"), RoomNo);
+	CPacket * CloseRoomPacket = CPacket::Alloc();
+	WORD Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
+	*CloseRoomPacket << Type << RoomNo << _pGameServer->_Sequence;
+	_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
+	CloseRoomPacket->Free();
 	}*/
 	return;
 }
 
-void CLanClient::ResBattleClosedRoom(CPacket * pPacket)
+void CLanMasterClient::ResBattleClosedRoom(CPacket * pPacket)
 {
 	//	배틀 서버 대기방 닫힘 리스트 생성 후 해당 리스트에서 삭제 
 	//	없을 경우 로그 및 에러 혹은 크래쉬
@@ -616,12 +615,12 @@ void CLanClient::ResBattleClosedRoom(CPacket * pPacket)
 		}
 		else
 			iter++;
-	}	
+	}
 	ReleaseSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
 	return;
 }
 
-void CLanClient::ResBattleLeftUser(CPacket * pPacket)
+void CLanMasterClient::ResBattleLeftUser(CPacket * pPacket)
 {
 
 	return;

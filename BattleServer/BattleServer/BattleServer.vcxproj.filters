@@ -16,9 +16,6 @@
     <Filter Include="LIB\Ehternet">
       <UniqueIdentifier>{fd89fb75-a5d1-4193-b923-e183e3a384e4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="LIB\LanClient">
-      <UniqueIdentifier>{fba7afec-6a2d-4100-b6f3-78aa7389f73e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="LIB\LanServer">
       <UniqueIdentifier>{3220d146-7687-49ba-8bdb-37cddfd328d5}</UniqueIdentifier>
     </Filter>
@@ -52,6 +49,15 @@
     <Filter Include="LIB\Json/Http">
       <UniqueIdentifier>{0a5f7687-2624-420c-9cf6-f6301fce1f63}</UniqueIdentifier>
     </Filter>
+    <Filter Include="BattleServer\LanClient">
+      <UniqueIdentifier>{fba7afec-6a2d-4100-b6f3-78aa7389f73e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleServer\LanClient\LanMaster">
+      <UniqueIdentifier>{19a7892c-bdd7-4c42-b4af-096e0806ec6b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BattleServer\LanClient\LanMonitor">
+      <UniqueIdentifier>{8307cbb3-e832-4d61-9069-2f87ce7472ca}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -66,9 +72,6 @@
     </ClCompile>
     <ClCompile Include="EtherNet_PDH.cpp">
       <Filter>LIB\Ehternet</Filter>
-    </ClCompile>
-    <ClCompile Include="LanClient.cpp">
-      <Filter>LIB\LanClient</Filter>
     </ClCompile>
     <ClCompile Include="Log.cpp">
       <Filter>LIB\Log</Filter>
@@ -100,6 +103,12 @@
     <ClCompile Include="..\json\jsoncpp.cpp">
       <Filter>LIB\Json/Http</Filter>
     </ClCompile>
+    <ClCompile Include="LanMasterClient.cpp">
+      <Filter>BattleServer\LanClient\LanMaster</Filter>
+    </ClCompile>
+    <ClCompile Include="LanMonitorClient.cpp">
+      <Filter>BattleServer\LanClient\LanMonitor</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CpuUsage.h">
@@ -115,7 +124,7 @@
       <Filter>LIB\Ehternet</Filter>
     </ClInclude>
     <ClInclude Include="LanClient.h">
-      <Filter>LIB\LanClient</Filter>
+      <Filter>BattleServer\LanClient</Filter>
     </ClInclude>
     <ClInclude Include="Log.h">
       <Filter>LIB\Log</Filter>
@@ -164,6 +173,12 @@
     </ClInclude>
     <ClInclude Include="define.h">
       <Filter>BattleServer\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="LanMasterClient.h">
+      <Filter>BattleServer\LanClient\LanMaster</Filter>
+    </ClInclude>
+    <ClInclude Include="LanMonitorClient.h">
+      <Filter>BattleServer\LanClient\LanMonitor</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

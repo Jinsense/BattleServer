@@ -34,10 +34,11 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
 	_CreateTokenTick = NULL;
 
-	_pMonitor = new CLanClient;
-	_pMonitor->Constructor(this);
-	_pMaster = new CLanClient;
+	_pMaster = new CLanMasterClient;
 	_pMaster->Constructor(this);
+
+	_pMonitor = new CLanMonitorClient;
+	_pMonitor->Constructor(this);
 
 	_BattleServerNo = NULL;
 	_RoomCnt = 1;
@@ -257,7 +258,7 @@ bool CGameServer::LanMonitorThread_Update()
 
 		if (false == _pMonitor->IsConnect())
 		{
-			_pMonitor->Connect(Config.MONITOR_BIND_IP, Config.MONITOR_BIND_PORT, true, Config.WORKER_THREAD);
+			_pMonitor->Connect(Config.MONITOR_BIND_IP, Config.MONITOR_BIND_PORT, true, LANCLIENT_WORKERTHREAD);
 			continue;
 		}
 
@@ -545,7 +546,6 @@ void CGameServer::WaitRoomSizeCheck()
 	while (Config.BATTLEROOM_DEFAULT_NUM > _WaitRoomMap.size())
 	{
 		WaitRoomCreate();
-		Sleep(10);
 	}
 	return;
 }
@@ -576,6 +576,7 @@ void CGameServer::WaitRoomCreate()
 	*pPacket << _Sequence;
 	_pMaster->SendPacket(pPacket);
 	pPacket->Free();
+
 	return;
 }
 
@@ -620,6 +621,7 @@ void CGameServer::WaitRoomGameReadyCheck()
 	//-----------------------------------------------------------
 	__int64 now = GetTickCount64();
 //	std::map<int, BATTLEROOM*> TempMap;
+	_TempMap.clear();
 	std::map<int, BATTLEROOM*>::iterator iter;
 	
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
@@ -627,7 +629,7 @@ void CGameServer::WaitRoomGameReadyCheck()
 	{
 		if (true == (*iter).second->PlayReady && now - (*iter).second->ReadyCount > (Config.BATTLEROOM_READYSEC * 1000))
 		{
-			TempMap.insert(*iter);
+			_TempMap.insert(*iter);
 			iter = _WaitRoomMap.erase(iter);
 			InterlockedDecrement(&_WaitRoomCount);
 		}
@@ -637,7 +639,7 @@ void CGameServer::WaitRoomGameReadyCheck()
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
 
 //	TempMap의 유저들에게 패킷을 전송 후 PlayMap에 추가
-	for (iter = TempMap.begin(); iter != TempMap.end();)
+	for (iter = _TempMap.begin(); iter != _TempMap.end();)
 	{
 		CPacket * pPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_CS_GAME_RES_PLAY_START;
@@ -654,7 +656,7 @@ void CGameServer::WaitRoomGameReadyCheck()
 		_PlayRoomMap.insert(*iter);
 		ReleaseSRWLockExclusive(&_PlayRoom_lock);
 		InterlockedIncrement(&_PlayRoomCount);
-		iter = TempMap.erase(iter);
+		iter = _TempMap.erase(iter);
 	}
 
 	

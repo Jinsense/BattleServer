@@ -134,7 +134,8 @@
     <ClCompile Include="Dump.cpp" />
     <ClCompile Include="EtherNet_PDH.cpp" />
     <ClCompile Include="GameServer.cpp" />
-    <ClCompile Include="LanClient.cpp" />
+    <ClCompile Include="LanMasterClient.cpp" />
+    <ClCompile Include="LanMonitorClient.cpp" />
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="BattleServer.cpp" />
@@ -162,6 +163,8 @@
     <ClInclude Include="EtherNet_PDH.h" />
     <ClInclude Include="GameServer.h" />
     <ClInclude Include="LanClient.h" />
+    <ClInclude Include="LanMasterClient.h" />
+    <ClInclude Include="LanMonitorClient.h" />
     <ClInclude Include="LockFreeQueue.h" />
     <ClInclude Include="LockFreeStack.h" />
     <ClInclude Include="Log.h" />

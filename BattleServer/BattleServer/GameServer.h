@@ -12,7 +12,8 @@
 #include "CpuUsage.h"
 #include "EtherNet_PDH.h"
 #include "BattleServer.h"
-#include "LanClient.h"
+#include "LanMasterClient.h"
+#include "LanMonitorClient.h"
 
 #pragma comment(lib, "Pdh.lib")
 
@@ -62,7 +63,7 @@ public:
 			wprintf(L"[GameServer :: LanMonitorThread] Init Error\n");
 			return false;
 		}
-		pLanMonitorThread->LanMonitorThread_Update();
+//		pLanMonitorThread->LanMonitorThread_Update();
 		return true;
 	}
 	bool	LanMonitorThread_Update();
@@ -122,11 +123,11 @@ private:
 	void	NewConnectTokenCreate();
 
 public:
-//	std::map<int, BATTLEROOM*> _WaitRoomMap;
+	std::map<int, BATTLEROOM*> _WaitRoomMap;
 	std::map<int, BATTLEROOM*> _PlayRoomMap;
-	std::map<int, BATTLEROOM*> TempMap;
+	std::map<int, BATTLEROOM*> _TempMap;
 	std::list<int> _ClosedRoomlist;
-//	SRWLOCK		_WaitRoom_lock;
+	SRWLOCK		_WaitRoom_lock;
 	SRWLOCK		_PlayRoom_lock;
 	SRWLOCK		_ClosedRoom_lock;
 	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
@@ -138,8 +139,8 @@ public:
 	char	_CurConnectToken[32];			//	배틀서버 접속 토큰 ( 신규 )
 	__int64 _CreateTokenTick;				//	토큰 신규 발행한 시간
 
-	CLanClient * _pMonitor;
-	CLanClient * _pMaster;
+	CLanMonitorClient * _pMonitor;
+	CLanMasterClient *	_pMaster;
 
 	UINT	_Sequence;
 	int		_RoomCnt;
