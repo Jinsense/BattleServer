@@ -33,6 +33,8 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	ZeroMemory(&_OldConnectToken, sizeof(_OldConnectToken));
 	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
 	_CreateTokenTick = NULL;
+	NewConnectTokenCreate();
+	memcpy(_OldConnectToken, _CurConnectToken, sizeof(_CurConnectToken));
 
 	_pMaster = new CLanMasterClient;
 	_pMaster->Constructor(this);
@@ -66,8 +68,6 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	PdhAddCounter(_CpuQuery, L"\\Memory\\Pool Nonpaged Bytes", NULL, &_MemoryNonpagedBytes);
 	PdhAddCounter(_CpuQuery, L"\\Process(MMOGameServer)\\Private Bytes", NULL, &_ProcessPrivateBytes);
 	PdhCollectQueryData(_CpuQuery);
-	
-	NewConnectTokenCreate();
 }
 
 CGameServer::~CGameServer()
@@ -395,7 +395,7 @@ void CGameServer::EntertokenCreate(char *pBuff)
 
 void CGameServer::NewConnectTokenCreate()
 {
-	strcpy_s(_OldConnectToken, sizeof(_OldConnectToken), _CurConnectToken);
+	memcpy(_OldConnectToken, _CurConnectToken, sizeof(_CurConnectToken));
 
 	for (int i = 0; i < 32; i++)
 		_CurConnectToken[i] = rand() % 26 + 97;
