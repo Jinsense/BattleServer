@@ -98,7 +98,7 @@ public:
 	}
 	void	HttpSendThread_Update();
 	void	HttpSend_Select(CRingBuffer * pBuffer);
-	void	HttpSend_Update(CRingBuffer * pBuffer);
+	void	HttpSend_Update(CRingBuffer * pBuffer);	
 	string	HttpPacket_Create(Json::Value PostData);
 	//-----------------------------------------------------------
 	//	사용자 함수 - OnAuth_Update
@@ -112,11 +112,6 @@ public:
 	//-----------------------------------------------------------
 	void	PlayRoomGameEndCheck();
 	void	PlayRoomDestroyCheck();
-
-	//-----------------------------------------------------------
-	//	더미 테스트 함수
-	//-----------------------------------------------------------
-	void	PlayRoomGameEndChange();	//	PlayRoomMap에 있는 방을 GameEnd 플래그를 true로 변경 
 
 private:
 	void	EntertokenCreate(char *pBuff);

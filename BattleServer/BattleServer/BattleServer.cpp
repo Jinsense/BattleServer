@@ -682,6 +682,11 @@ void CBattleServer::ProcGame_Release()
 				pPacket->Free();
 			}
 
+			//	AccountNoMap에서 삭제
+			AcquireSRWLockExclusive(&_AccountNoMap_srwlock);
+			_AccountNoMap.erase(pSession->_AccountNo);
+			ReleaseSRWLockExclusive(&_AccountNoMap_srwlock);
+
 			pSession->_ClientInfo.ClientID = NULL;
 			pSession->_ClientInfo.Port = NULL;
 			closesocket(pSession->_ClientInfo.Sock);

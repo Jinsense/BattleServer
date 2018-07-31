@@ -5,6 +5,7 @@ CPlayer::CPlayer()
 {
 	_AccountNo = NULL;
 	ZeroMemory(&_SessionKey, sizeof(_SessionKey));
+	ZeroMemory(&_ConnectToken, sizeof(_ConnectToken));
 	_Version = NULL;
 	ZeroMemory(&_Nickname, sizeof(_Nickname));
 	_Playtime = NULL;
@@ -12,6 +13,7 @@ CPlayer::CPlayer()
 	_Kill = NULL;
 	_Die = NULL;
 	_Win = NULL;
+	_pGameServer = nullptr;
 }
 
 CPlayer::~CPlayer()
@@ -102,8 +104,35 @@ void CPlayer::OnGame_ClientJoin()
 
 void CPlayer::OnGame_ClientLeave()
 {
+	//------------------------------------------------------------
 	//	게임 컨텐츠상의 플레이어 정리 ( 월드맵에서 제거, 파티정리 등등 )
+	//------------------------------------------------------------
+	//	플레이 중인 방에서 유저가 나감을 다른 유저들에게 전달
+	std::map<int, BATTLEROOM*>::iterator Map_iter;
+	std::list<RoomPlayerInfo*>::iterator Room_iter;
+	CPacket * pPacket = CPacket::Alloc();
+	WORD Type = en_PACKET_CS_GAME_RES_LEAVE_USER;
+	*pPacket << _RoomNo << _AccountNo;
+	pPacket->AddRef();
 
+	AcquireSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
+	Map_iter = _pGameServer->_PlayRoomMap.find(_RoomNo);
+
+	for (Room_iter = (*Map_iter).second->RoomPlayer.begin(); Room_iter != (*Map_iter).second->RoomPlayer.end();)
+	{
+		if ((*Room_iter)->AccountNo == _AccountNo)
+		{
+			Room_iter = (*Map_iter).second->RoomPlayer.erase(Room_iter);
+			continue;
+		}
+		else
+		{
+			SendPacket(pPacket);
+			Room_iter++;
+		}
+	}
+	ReleaseSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
+	pPacket->Free();
 	return;
 }
 
@@ -162,6 +191,7 @@ bool CPlayer::OnHttp_Result_SelectAccount(string temp)
 		newPacket->Free();
 		return false;
 	}
+
 	int ResNum = result["result"].asInt();
 	if (LOGIN_SUCCESS != ResNum)
 	{
@@ -188,8 +218,9 @@ bool CPlayer::OnHttp_Result_SelectAccount(string temp)
 		newPacket->Free();
 		return false;
 	}
+
 	//	Nickname 저장 - char로 변환 후 wchar로 저장
-	string Nickname = result["nickname"].asCString();
+	string Nickname = result["nick"].asCString();
 	char Temp[20] = { 0 , };
 	strcpy_s(Temp, sizeof(Temp), Nickname.c_str());
 	UTF8toUTF16(Temp, _Nickname, sizeof(Temp));
@@ -238,7 +269,7 @@ void CPlayer::OnHttp_Result_Success()
 {
 	CPacket *pNewPacket = CPacket::Alloc();
 	WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-	BYTE Status = 1;
+	BYTE Status = SUCCESS;
 
 	*pNewPacket << Type << Status << _AccountNo;
 	SendPacket(pNewPacket);
@@ -250,6 +281,7 @@ void CPlayer::Auth_ReqLogin(CPacket *pPacket)
 {
 	*pPacket >> _AccountNo;
 	pPacket->PopData((char*)_SessionKey, sizeof(_SessionKey));
+	pPacket->PopData((char*)_ConnectToken, sizeof(_ConnectToken));
 	*pPacket >> _Version;
 
 	if (false == VersionCheck())
@@ -332,7 +364,7 @@ void CPlayer::HttpJsonCall()
 	//	RingBuffer-메모리풀 생성하여 HttpQueue에 저장한 후 이벤트 호출
 	WORD Type = SELECT;
 	CRingBuffer *pBuffer = _pGameServer->_HttpPool->Alloc();
-	pBuffer->Clear();
+	pBuffer->Initialize(500);
 	pBuffer->Enqueue((char*)&Type, sizeof(Type));
 	pBuffer->Enqueue((char*)&_iArrayIndex, sizeof(_iArrayIndex));
 	pBuffer->Enqueue((char*)&_AccountNo, sizeof(_AccountNo));
@@ -489,6 +521,8 @@ void CPlayer::RoomEnterPlayer(BATTLEROOM * Room)
 
 void CPlayer::SetGame(CGameServer * pGameServer)
 {
+	if (nullptr == pGameServer)
+		g_CrashDump->Crash();
 	_pGameServer = pGameServer;
 	return;
 }

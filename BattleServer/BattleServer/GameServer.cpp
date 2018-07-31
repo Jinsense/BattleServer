@@ -27,7 +27,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	for (int i = 0; i < iMaxSession; i++)
 	{
 		SetSessionArray(i, (CNetSession*)&_pPlayer[i]);
-		_pPlayer->SetGame(this);
+		_pPlayer[i].SetGame(this);
 	}
 
 	ZeroMemory(&_OldConnectToken, sizeof(_OldConnectToken));
@@ -115,9 +115,6 @@ void CGameServer::OnGame_Update()
 	//	클라이언트의 요청 (패킷수신) 외에 기본적으로 항시
 	//	처리되어야 할 게임 컨텐츠 부분 로직
 	//-----------------------------------------------------------
-	
-	//	더미테스트 상태이므로 플레이 종료 플래그 true 변경
-	PlayRoomGameEndChange();
 	PlayRoomGameEndCheck();
 	PlayRoomDestroyCheck();
 	return;
@@ -704,21 +701,6 @@ void CGameServer::PlayRoomDestroyCheck()
 	ReleaseSRWLockExclusive(&_PlayRoom_lock);
 	return;
 }
-
-void CGameServer::PlayRoomGameEndChange()
-{
-	AcquireSRWLockExclusive(&_PlayRoom_lock);
-	for (auto i = _PlayRoomMap.begin(); i != _PlayRoomMap.end(); i++)
-	{
-		(*i).second->GameEnd = true;
-	}
-	ReleaseSRWLockExclusive(&_PlayRoom_lock);
-	return;
-}
-
-
-
-
 
 
 

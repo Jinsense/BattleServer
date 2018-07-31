@@ -18,7 +18,7 @@ CNetSession::CNetSession() : _RecvQ(BUF), _SendQ(BUF), _CompleteSendPacket(BUF)
 	_AuthToGameFlag = false;
 	_AccountNo = NULL;
 
-	_pLog->GetInstance();
+	_pLog = _pLog->GetInstance();
 }
 
 CNetSession::~CNetSession()

@@ -60,6 +60,7 @@ public:
 	
 public:
 	char	_SessionKey[64];
+	char	_ConnectToken[32];
 	int		_Version;
 	//	기타 게임 컨텐츠들
 	WCHAR	_Nickname[20];	//	마지막에 NULL
