@@ -140,6 +140,7 @@ void CBattleServer::SetSessionArray(int iArrayIndex, CNetSession *pSession)
 {
 	_pSessionArray[iArrayIndex] = pSession;
 	_pSessionArray[iArrayIndex]->Set(this);
+	_pSessionArray[iArrayIndex]->Init();
 	return;
 }
 
@@ -240,14 +241,12 @@ void CBattleServer::StartRecvPost(int Index)
 		int LastError = WSAGetLastError();
 		if (10060 == LastError)
 		{
-			_pLog->Log(L"shutdown", LOG_SYSTEM, L"Recv SocketError - Code %d", LastError);
 			shutdown(_pSessionArray[Index]->_ClientInfo.Sock, SD_BOTH);
 		}
 		else if (ERROR_IO_PENDING != LastError)
 		{
 			if (true != SessionAcquireFree(Index))
 			{
-				_pLog->Log(L"shutdown", LOG_SYSTEM, L"Recv SocketError - Code %d", LastError);
 				shutdown(_pSessionArray[Index]->_ClientInfo.Sock, SD_BOTH);
 			}
 		}
@@ -295,14 +294,12 @@ void CBattleServer::RecvPost(int Index)
 		int LastError = WSAGetLastError();
 		if (10060 == LastError)
 		{
-			_pLog->Log(L"shutdown", LOG_SYSTEM, L"Recv SocketError - Code %d", LastError);
 			shutdown(_pSessionArray[Index]->_ClientInfo.Sock, SD_BOTH);
 		}
 		else if (ERROR_IO_PENDING != LastError)
 		{
 			if (true != SessionAcquireFree(Index))
 			{
-				_pLog->Log(L"shutdown", LOG_SYSTEM, L"Recv SocketError - Code %d", LastError);
 				shutdown(pSession->_ClientInfo.Sock, SD_BOTH);
 			}
 		}
@@ -777,7 +774,7 @@ bool CBattleServer::AuthThread_update()
 bool CBattleServer::GameUpdateThread_update()
 {
 	int Count;
-	while (!_bShutdown)
+ 	while (!_bShutdown)
 	{
 		Sleep(_iGameThread);
 //		Count = 0;

@@ -112,7 +112,7 @@ void CPlayer::OnGame_ClientLeave()
 	std::list<RoomPlayerInfo*>::iterator Room_iter;
 	CPacket * pPacket = CPacket::Alloc();
 	WORD Type = en_PACKET_CS_GAME_RES_LEAVE_USER;
-	*pPacket << _RoomNo << _AccountNo;
+	*pPacket << Type << _RoomNo << _AccountNo;
 	pPacket->AddRef();
 
 	AcquireSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
@@ -269,9 +269,10 @@ void CPlayer::OnHttp_Result_Success()
 {
 	CPacket *pNewPacket = CPacket::Alloc();
 	WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-	BYTE Status = SUCCESS;
+	BYTE Result = LOGIN_SUCCESS;
+//	BYTE Result = CLIENT_ERROR;
 
-	*pNewPacket << Type << Status << _AccountNo;
+	*pNewPacket << Type << _AccountNo << Result;
 	SendPacket(pNewPacket);
 	pNewPacket->Free();
 	return;
@@ -283,6 +284,7 @@ void CPlayer::Auth_ReqLogin(CPacket *pPacket)
 	pPacket->PopData((char*)_SessionKey, sizeof(_SessionKey));
 	pPacket->PopData((char*)_ConnectToken, sizeof(_ConnectToken));
 	*pPacket >> _Version;
+
 
 	if (false == VersionCheck())
 		return;
@@ -403,7 +405,7 @@ BATTLEROOM * CPlayer::FindWaitRoom(int RoomNo)
 		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 		WORD Result = NOT_FINDROOM;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket << _AccountNo << RoomNo << MaxUser << Result;
+		*newPacket << Type << _AccountNo << RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return nullptr;
@@ -421,7 +423,7 @@ bool CPlayer::WaitRoomCheck(bool RoomReady)
 		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 		WORD Result = NOT_READYROOM;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket << _AccountNo << _RoomNo << MaxUser << Result;
+		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -439,7 +441,7 @@ bool CPlayer::EnterTokenCheck(char * EnterToken, char * RoomToken)
 		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 		WORD Result = ENTERTOKEN_FAIL;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket << _AccountNo << _RoomNo << MaxUser << Result;
+		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -457,7 +459,7 @@ bool CPlayer::WaitRoomUserNumCheck(BATTLEROOM * Room)
 		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 		WORD Result = ROOMUSER_MAX;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket << _AccountNo << _RoomNo << MaxUser << Result;
+		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -485,16 +487,19 @@ void CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
 	//	_RoomNo에 방 번호와 RoomPlayer 구조체에 Session Index번호 지정
 	//	현재는 락을 걸지 않았지만 차후 문제가 생길경우 락을 추가하여 해결하자
 	//	_RoomNo = RoomNo;
-	RoomPlayerInfo * pInfo;
+
+	RoomPlayerInfo * pInfo = _pGameServer->_RoomPlayerPool->Alloc();
 	pInfo->AccountNo = _AccountNo;
 	pInfo->Index = _iArrayIndex;
-//	Room->RoomPlayer.push_back(Info);
+	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	Room->RoomPlayer.push_back(pInfo);
+	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	//	방 입장 응답 패킷 전송
 	CPacket * newPacket = CPacket::Alloc();
 	WORD MaxUser = Config.BATTLEROOM_MAX_USER;
 	WORD Result = enENTERROOM_RESULT::SUCCESS;
 	WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-	*newPacket << _AccountNo << _RoomNo << MaxUser << Result;
+	*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 	SendPacket(newPacket);
 	newPacket->Free();
 	return;
@@ -505,17 +510,24 @@ void CPlayer::RoomEnterPlayer(BATTLEROOM * Room)
 	//	정상적으로 입장이 성공할 경우 방에 유저가 추가됨 패킷도 추가 전송
 	//	새로 접속한 클라이언트에게도 패킷을 보내줌
 	//	GameServer.cpp에서 패킷을 보내려면 Index번호가 필요함
-	CPacket * AddPacket = CPacket::Alloc();
-	*AddPacket << _RoomNo << _AccountNo;
+	WORD Type = en_PACKET_CS_GAME_RES_ADD_USER;
+	/*CPacket * AddPacket = CPacket::Alloc();
+	*AddPacket << Type << _RoomNo << _AccountNo;
 	AddPacket->PushData((char*)&_Nickname, sizeof(_Nickname));
 	*AddPacket << _Playcount << _Playtime << _Kill << _Die << _Win;
-	AddPacket->AddRef();
+	AddPacket->AddRef();*/
+	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	for (auto j = Room->RoomPlayer.begin(); j != Room->RoomPlayer.end(); j++)
 	{
+		CPacket * AddPacket = CPacket::Alloc();
+		*AddPacket << Type << _RoomNo << _AccountNo;
+		AddPacket->PushData((char*)&_Nickname, sizeof(_Nickname));
+		*AddPacket << _Playcount << _Playtime << _Kill << _Die << _Win;
 		_pBattleServer->_pSessionArray[(*j)->Index]->SendPacket(AddPacket);
 		AddPacket->Free();
 	}
-	AddPacket->Free();
+	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	/*AddPacket->Free();*/
 	return;
 }
 

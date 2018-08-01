@@ -34,6 +34,14 @@ CNetSession::~CNetSession()
 	}
 }
 
+void CNetSession::Init()
+{
+	_RecvQ.Initialize(RINGBUFFERSIZE);
+	_SendQ.Initialize(RINGBUFFERSIZE);
+	_CompleteSendPacket.Initialize(RINGBUFFERSIZE);
+	return;
+}
+
 void CNetSession::Set(CBattleServer *pBattleServer)
 {
 	_pBattleServer = pBattleServer;

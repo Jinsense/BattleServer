@@ -78,7 +78,7 @@ public:
 			std::wprintf(L"[Server :: LanMonitoringThread] Init Error\n");
 			return false;
 		}
-		_pLanMasterCheckThread->LanMasterCheckThead_Update();
+//		_pLanMasterCheckThread->LanMasterCheckThead_Update();
 		return true;
 	}
 	void	LanMasterCheckThead_Update();
@@ -126,6 +126,7 @@ public:
 	SRWLOCK		_PlayRoom_lock;
 	SRWLOCK		_ClosedRoom_lock;
 	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
+	CMemoryPool<RoomPlayerInfo> *_RoomPlayerPool;
 	CMemoryPool<CRingBuffer> *_HttpPool;
 	CLockFreeQueue<CRingBuffer*> _HttpQueue;
 	HANDLE	_hHttpEvent;

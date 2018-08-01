@@ -4,6 +4,8 @@
 #include <Windows.h>
 #include <list>
 
+#define		RINGBUFFERSIZE		3000
+
 enum enENTERROOM_RESULT
 {
 	SUCCESS = 1,
@@ -37,6 +39,5 @@ typedef struct st_BattleRoom
 	bool GameEnd;		//	해당 방의 게임이 끝났는지 여부
 	std::list<RoomPlayerInfo*> RoomPlayer;		//	방에 있는 유저 목록
 }BATTLEROOM;
-
 
 #endif

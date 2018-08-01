@@ -15,6 +15,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	InitializeSRWLock(&_PlayRoom_lock);
 	InitializeSRWLock(&_ClosedRoom_lock);
 	_BattleRoomPool = new CMemoryPool<BATTLEROOM>();
+	_RoomPlayerPool = new CMemoryPool<RoomPlayerInfo>();
 	_HttpPool = new CMemoryPool<CRingBuffer>();
 	_bMonitor = true;
 	_hMonitorThread = NULL;
@@ -137,32 +138,37 @@ void CGameServer::OnRoomLeavePlayer(int RoomNo, INT64 AccountNo)
 		return;
 	else
 	{
-		if (false == (*iter).second->RoomReady)
-		{
+//		if (false == (*iter).second->RoomReady)
+//		{
 			//	마스터 서버로 배틀 서버의 대기방에서 유저가 나감 패킷 전송
 			CPacket *pPacket = CPacket::Alloc();
 			WORD Type = en_PACKET_BAT_MAS_REQ_LEFT_USER;
-			*pPacket << Type << RoomNo << AccountNo;
+			*pPacket << Type << RoomNo << AccountNo << _Sequence;
 			_pMaster->SendPacket(pPacket);
 			pPacket->Free();
-
+			AcquireSRWLockExclusive(&_WaitRoom_lock);
 			//	방의 리스트에서 해당 유저 삭제
 			for (auto i = (*iter).second->RoomPlayer.begin(); i != (*iter).second->RoomPlayer.end();)
 			{
 				if (AccountNo == (*i)->AccountNo)
 				{
 					i = (*iter).second->RoomPlayer.erase(i);
+					(*iter).second->CurUser--;
 					break;
 				}
 				else
 					i++;
 			}
+			ReleaseSRWLockExclusive(&_WaitRoom_lock);
+			if (true == (*iter).second->RoomPlayer.empty())
+				return;
 
 			//	해당 방의 유저들에게 해당 플레이어 방에서 나감 패킷 전송
 			CPacket *newPacket = CPacket::Alloc();
 			Type = en_PACKET_CS_GAME_RES_REMOVE_USER;
 			*newPacket << Type << RoomNo << AccountNo << _Sequence;
 			newPacket->AddRef();
+			AcquireSRWLockExclusive(&_WaitRoom_lock);
 			for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
 			{
 				if (AccountNo == (*j)->AccountNo)
@@ -170,8 +176,13 @@ void CGameServer::OnRoomLeavePlayer(int RoomNo, INT64 AccountNo)
 				_pSessionArray[(*j)->Index]->SendPacket(newPacket);
 				newPacket->Free();
 			}
+			ReleaseSRWLockExclusive(&_WaitRoom_lock);
 			newPacket->Free();
-		}
+//		}
+//		else
+//		{
+//
+//		}
 	}	
 }
 

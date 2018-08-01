@@ -76,6 +76,7 @@ public:
 	virtual bool OnHttp_Result_SelectContents(string temp) = 0;
 	virtual void OnHttp_Result_Success() = 0;
 
+	void	Init();
 	void	Set(CBattleServer *pBattleServer);
 	bool	Find_AccountNo(INT64 AccountNO);
 	void	SendPacket(CPacket *pPacket);
