@@ -152,6 +152,7 @@ bool CBattleServer::CreateThread()
 	_hSendThread = (HANDLE)_beginthreadex(NULL, 0, &SendThread, (LPVOID)this, 0, NULL);
 	_hAuthThread = (HANDLE)_beginthreadex(NULL, 0, &AuthThread, (LPVOID)this, 0, NULL);
 	_hGameUpdateThread = (HANDLE)_beginthreadex(NULL, 0, &GameUpdateThread, (LPVOID)this, 0, NULL);
+	_hHeartBeatThread = (HANDLE)_beginthreadex(NULL, 0, &HeartBeatThread, (LPVOID)this, 0, NULL);
 	return true;
 }
 
@@ -607,6 +608,7 @@ void CBattleServer::ProcGame_LogoutInGame()
 		{
 			pSession->_Mode = CNetSession::MODE_LOGOUT_IN_GAME;
 			_Monitor_SessionGameMode--;
+			pSession->OnGame_ClientLeave();
 		}
 	}
 	return;
@@ -625,7 +627,6 @@ void CBattleServer::ProcGame_Logout()
 		if (CNetSession::MODE_LOGOUT_IN_GAME == pSession->_Mode && false == pSession->_SendFlag)
 		{
 			pSession->_Mode = CNetSession::MODE_WAIT_LOGOUT;
-			pSession->OnGame_ClientLeave();
 		}
 	}
 	return;
@@ -870,3 +871,18 @@ bool CBattleServer::SendThread_update()
 	return true;
 }
 
+bool CBattleServer::HeartBeatThread_update()
+{
+	UINT64 Now = GetTickCount64();
+	AcquireSRWLockExclusive(&_Srwlock);
+	for (int i = 0; i < _iMaxSession; i++)
+	{
+		if (_pSessionArray[i]->_Mode == CNetSession::MODE_AUTH || _pSessionArray[i]->_Mode == CNetSession::MODE_AUTH_TO_GAME || _pSessionArray[i]->_Mode == CNetSession::MODE_GAME)
+		{
+			if (Now - _pSessionArray[i]->_HeartBeat > Config.USER_TIMEOUT)
+				_pSessionArray[i]->Disconnect();
+		}
+	}
+	ReleaseSRWLockExclusive(&_Srwlock);
+	return true;
+}

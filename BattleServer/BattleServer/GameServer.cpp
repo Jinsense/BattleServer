@@ -46,6 +46,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	_BattleServerNo = NULL;
 	_RoomCnt = 1;
 	_WaitRoomCount = NULL;
+	_CountDownRoomCount = NULL;
 	_PlayRoomCount = NULL;
 
 	_Sequence = 1;
@@ -164,20 +165,21 @@ void CGameServer::OnRoomLeavePlayer(int RoomNo, INT64 AccountNo)
 				return;
 
 			//	해당 방의 유저들에게 해당 플레이어 방에서 나감 패킷 전송
-			CPacket *newPacket = CPacket::Alloc();
+			
 			Type = en_PACKET_CS_GAME_RES_REMOVE_USER;
-			*newPacket << Type << RoomNo << AccountNo << _Sequence;
-			newPacket->AddRef();
+		
 			AcquireSRWLockExclusive(&_WaitRoom_lock);
 			for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
 			{
 				if (AccountNo == (*j)->AccountNo)
 					continue;
+				CPacket *newPacket = CPacket::Alloc();
+				*newPacket << Type << RoomNo << AccountNo;
 				_pSessionArray[(*j)->Index]->SendPacket(newPacket);
 				newPacket->Free();
 			}
 			ReleaseSRWLockExclusive(&_WaitRoom_lock);
-			newPacket->Free();
+		
 //		}
 //		else
 //		{
@@ -245,6 +247,7 @@ bool CGameServer::MonitorThread_update()
 			wprintf(L"	Alloc / Free		:	%d\n\n", CPacket::_UseCount);
 
 			wprintf(L"	WaitRoom		:	%d%\n", _WaitRoomCount);
+			wprintf(L"	CountDownRoom		:	%d%\n", _CountDownRoomCount);
 			wprintf(L"	PlayRoom		:	%d%\n", _PlayRoomCount);
 			wprintf(L"	BattleRoomPool UseCount	:	%d%\n", _BattleRoomPool->GetUseCount());
 		}
@@ -598,26 +601,47 @@ void CGameServer::WaitRoomReadyCheck()
 	//-----------------------------------------------------------
 	std::map<int, BATTLEROOM*>::iterator iter;
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
-	for (iter = _WaitRoomMap.begin(); iter != _WaitRoomMap.end();iter++)
+	for (iter = _WaitRoomMap.begin(); iter != _WaitRoomMap.end();)
 	{
-		if (true == (*iter).second->RoomReady)
+		if (true == (*iter).second->RoomReady && false == (*iter).second->PlayReady)
 		{
 			(*iter).second->PlayReady = true;
 			(*iter).second->ReadyCount = GetTickCount64();
-			CPacket * pPacket = CPacket::Alloc();
+
+			_CountDownMap.insert(*iter);
+			InterlockedIncrement(&_CountDownRoomCount);
+
 			WORD Type = en_PACKET_CS_GAME_RES_PLAY_READY;
 			BYTE ReadySec = Config.BATTLEROOM_READYSEC;
-			*pPacket << Type << (*iter).second->RoomNo << ReadySec;
-			pPacket->AddRef();
+
 			for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
 			{
+				CPacket * pPacket = CPacket::Alloc();
+				*pPacket << Type << (*iter).second->RoomNo << ReadySec;
 				_pSessionArray[(*j)->Index]->SendPacket(pPacket);
 				pPacket->Free();
 			}
-			pPacket->Free();
+
+			//	마스터 서버로 대기 방 닫힘 패킷 전송
+			AcquireSRWLockExclusive(&_ClosedRoom_lock);
+			_ClosedRoomlist.push_back((*iter).second->RoomNo);
+			ReleaseSRWLockExclusive(&_ClosedRoom_lock);
+
+			CPacket * CloseRoomPacket = CPacket::Alloc();
+			Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
+			*CloseRoomPacket << Type << (*iter).second->RoomNo << _Sequence;
+			_pMaster->SendPacket(CloseRoomPacket);
+			CloseRoomPacket->Free();
+
+			iter = _WaitRoomMap.erase(iter);
+			InterlockedDecrement(&_WaitRoomCount);
 		}
+		else
+			iter++;
 	}
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
+
+
 	return;
 }
 
@@ -627,19 +651,16 @@ void CGameServer::WaitRoomGameReadyCheck()
 	//	준비 방 중에서 (플레이 준비 플래그 - TRUE ) 변경 시간이 Config에서 얻어온 준비시간보다 클 경우 
 	//	WaitRoomMap에서 해당 방을 삭제 후 PlayRoomMap에 추가 및 해당 방의 모든 인원에게 플레이 시작 패킷 전송
 	//-----------------------------------------------------------
-	__int64 now = GetTickCount64();
-//	std::map<int, BATTLEROOM*> TempMap;
-	_TempMap.clear();
-	std::map<int, BATTLEROOM*>::iterator iter;
-	
+	__int64 now = GetTickCount64();	
+	std::map<int, BATTLEROOM*>::iterator iter;	
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
-	for (iter = _WaitRoomMap.begin(); iter != _WaitRoomMap.end();)
+	for (iter = _CountDownMap.begin(); iter != _CountDownMap.end();)
 	{
 		if (true == (*iter).second->PlayReady && now - (*iter).second->ReadyCount > (Config.BATTLEROOM_READYSEC * 1000))
 		{
 			_TempMap.insert(*iter);
-			iter = _WaitRoomMap.erase(iter);
-			InterlockedDecrement(&_WaitRoomCount);
+			iter = _CountDownMap.erase(iter);
+			InterlockedDecrement(&_CountDownRoomCount);
 		}
 		else
 			iter++;
@@ -649,17 +670,16 @@ void CGameServer::WaitRoomGameReadyCheck()
 //	TempMap의 유저들에게 패킷을 전송 후 PlayMap에 추가
 	for (iter = _TempMap.begin(); iter != _TempMap.end();)
 	{
-		CPacket * pPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_CS_GAME_RES_PLAY_START;
-		*pPacket << Type << (*iter).second->RoomNo;
-		pPacket->AddRef();
+		
 		for (auto i = (*iter).second->RoomPlayer.begin(); i != (*iter).second->RoomPlayer.end(); i++)
 		{
+			CPacket * pPacket = CPacket::Alloc();
+			*pPacket << Type << (*iter).second->RoomNo;
 			_pSessionArray[(*i)->Index]->_AuthToGameFlag = true;
 			_pSessionArray[(*i)->Index]->SendPacket(pPacket);
 			pPacket->Free();
 		}
-		pPacket->Free();
 		AcquireSRWLockExclusive(&_PlayRoom_lock);
 		_PlayRoomMap.insert(*iter);
 		ReleaseSRWLockExclusive(&_PlayRoom_lock);

@@ -67,6 +67,7 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 	case en_PACKET_CS_GAME_REQ_LOGIN:
 	{
 		Auth_ReqLogin(pPacket);
+		_HeartBeat = GetTickCount64();
 	}
 	break;
 	//------------------------------------------------------------
@@ -85,8 +86,14 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 	case en_PACKET_CS_GAME_REQ_ENTER_ROOM:
 	{
 		Auth_ReqEnterRoom(pPacket);
+		_HeartBeat = GetTickCount64();
 	}
 	break;	
+	case en_PACKET_CS_GAME_REQ_HEARTBEAT:
+	{
+		_HeartBeat = GetTickCount64();
+	}
+	break;
 	default:
 		wprintf(L"Wrong Packet Type !!\n");
 		g_CrashDump->Crash();
@@ -139,10 +146,7 @@ void CPlayer::OnGame_ClientLeave()
 void CPlayer::OnGame_Packet(CPacket *pPacket)
 {
 	// 실제 게임 패킷 처리
-	//== Game 스레드
-	//
-	//en_PACKET_CS_GAME_REQ_ECHO
-	//en_PACKET_CS_GAME_RES_ECHO
+	//== Game 스레드	
 	if (0 == pPacket->GetDataSize())
 	{
 		_pLog->Log(L"Error", LOG_SYSTEM, L"OnGamePacket - Packet DataSize is 0  Index : %d", this->_iArrayIndex);
@@ -155,7 +159,11 @@ void CPlayer::OnGame_Packet(CPacket *pPacket)
 	switch (Type)
 	{
 	//	패킷 처리
-		
+	case en_PACKET_CS_GAME_REQ_HEARTBEAT:
+	{
+		_HeartBeat = GetTickCount64();
+	}
+	break;
 	default:
 		wprintf(L"Wrong Packet Type !!\n");
 		g_CrashDump->Crash();
@@ -315,8 +323,10 @@ void CPlayer::Auth_ReqEnterRoom(CPacket *pPacket)
 	if (false == WaitRoomUserNumCheck(Room))
 		return;
 
-	RoomEnterSuccess(Room);
-	RoomEnterPlayer(Room);
+	RoomEnterSuccess(Room);			//	방 입장 성공 패킷 전송
+	RoomEnterPlayer(Room);			//	기존 유저 + 방 입장한 유저에게 입장한 유저 정보 전송
+	RoomPlayerInfoSendPacket(Room, AccountNo);	//	기존에 존재하던 유저들 정보를 새로 입장한 유저에게 전송
+	RoomPlayerReadyCheck(Room);		//	방에 인원이 가득 찼는지 검사 후 대기방 플레이 전환 검사
 
 	return;
 }
@@ -402,8 +412,8 @@ BATTLEROOM * CPlayer::FindWaitRoom(int RoomNo)
 	if (true == NotFind)
 	{
 		CPacket * newPacket = CPacket::Alloc();
-		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-		WORD Result = NOT_FINDROOM;
+		BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
+		BYTE Result = NOT_FINDROOM;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
 		*newPacket << Type << _AccountNo << RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
@@ -420,8 +430,8 @@ bool CPlayer::WaitRoomCheck(bool RoomReady)
 	{
 		//	대기방이 아님 패킷 전송
 		CPacket * newPacket = CPacket::Alloc();
-		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-		WORD Result = NOT_READYROOM;
+		BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
+		BYTE Result = NOT_READYROOM;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
 		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
@@ -438,8 +448,8 @@ bool CPlayer::EnterTokenCheck(char * EnterToken, char * RoomToken)
 	{
 		//	다른경우 로그 남기고 EnterToken 다름 패킷 전송
 		CPacket * newPacket = CPacket::Alloc();
-		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-		WORD Result = ENTERTOKEN_FAIL;
+		BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
+		BYTE Result = ENTERTOKEN_FAIL;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
 		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
@@ -456,28 +466,13 @@ bool CPlayer::WaitRoomUserNumCheck(BATTLEROOM * Room)
 	{
 		//	들어갈 자리가 없음 패킷 전송
 		CPacket * newPacket = CPacket::Alloc();
-		WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-		WORD Result = ROOMUSER_MAX;
+		BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
+		BYTE Result = ROOMUSER_MAX;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
 		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
-	}
-	Room->CurUser++;
-	//	방에 입장 인원이 꽉찼을 경우 마스터 서버로 대기 방 닫힘 패킷 전송
-	if (Room->CurUser == Room->MaxUser)
-	{
-		AcquireSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
-		_pGameServer->_ClosedRoomlist.push_back(Room->RoomNo);
-		ReleaseSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
-
-		CPacket * CloseRoomPacket = CPacket::Alloc();
-		WORD Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
-		*CloseRoomPacket << Type << Room->RoomNo << _pGameServer->_Sequence;
-		_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
-		CloseRoomPacket->Free();
-		Room->RoomReady = true;
 	}
 	return true;
 }
@@ -494,10 +489,11 @@ void CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
 	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	Room->RoomPlayer.push_back(pInfo);
 	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	Room->CurUser++;
 	//	방 입장 응답 패킷 전송
 	CPacket * newPacket = CPacket::Alloc();
-	WORD MaxUser = Config.BATTLEROOM_MAX_USER;
-	WORD Result = enENTERROOM_RESULT::SUCCESS;
+	BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
+	BYTE Result = enENTERROOM_RESULT::SUCCESS;
 	WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
 	*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 	SendPacket(newPacket);
@@ -528,6 +524,43 @@ void CPlayer::RoomEnterPlayer(BATTLEROOM * Room)
 	}
 	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	/*AddPacket->Free();*/
+	return;
+}
+
+void CPlayer::RoomPlayerInfoSendPacket(BATTLEROOM * Room, INT64 AccountNo)
+{
+	//-----------------------------------------------------------
+	//	새로 입장한 플레이어에게 기존 유저 정보 전송
+	//-----------------------------------------------------------
+	std::list<RoomPlayerInfo*>::iterator iter;
+	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	for (iter = Room->RoomPlayer.begin(); iter != Room->RoomPlayer.end(); iter++)
+	{
+		if ((*iter)->AccountNo == AccountNo)
+			continue;
+		CPlayer * pPlayer = &_pGameServer->_pPlayer[(*iter)->Index];
+		WORD Type = en_PACKET_CS_GAME_RES_ADD_USER;
+		CPacket * pPacket = CPacket::Alloc();
+		*pPacket << Type << Room->RoomNo << (*iter)->AccountNo;
+		pPacket->PushData((char*)&pPlayer->_Nickname, sizeof(pPlayer->_Nickname));
+		*pPacket << pPlayer->_Playcount << pPlayer->_Playtime << pPlayer->_Kill << pPlayer->_Die << pPlayer->_Win;
+		SendPacket(pPacket);
+		pPacket->Free();
+	}
+	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	return;
+}
+
+void CPlayer::RoomPlayerReadyCheck(BATTLEROOM * Room)
+{
+	//-----------------------------------------------------------
+	//	방의 인원이 전부 꽉찼는지 검사 후 RoomReady 플래그 전환
+	//	플래그 바꾸면 Auth에서 감지 후 방 시작 패킷 전송
+	//-----------------------------------------------------------
+	if (0 == Room->MaxUser - Room->CurUser)
+	{
+		Room->RoomReady = true;
+	}
 	return;
 }
 

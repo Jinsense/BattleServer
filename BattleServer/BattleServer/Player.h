@@ -50,6 +50,8 @@ public:
 	bool	WaitRoomUserNumCheck(BATTLEROOM * Room);
 	void	RoomEnterSuccess(BATTLEROOM * Room);
 	void	RoomEnterPlayer(BATTLEROOM * Room);
+	void	RoomPlayerInfoSendPacket(BATTLEROOM * Room, INT64 AccountNo);
+	void	RoomPlayerReadyCheck(BATTLEROOM * Room);
 
 	//-----------------------------------------------------------
 	//	기초 함수

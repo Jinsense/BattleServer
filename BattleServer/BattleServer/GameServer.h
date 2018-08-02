@@ -118,8 +118,11 @@ private:
 	void	NewConnectTokenCreate();
 
 public:
+	CPlayer * _pPlayer;
+
 	std::map<int, BATTLEROOM*> _WaitRoomMap;
 	std::map<int, BATTLEROOM*> _PlayRoomMap;
+	std::map<int, BATTLEROOM*> _CountDownMap;
 	std::map<int, BATTLEROOM*> _TempMap;
 	std::list<int> _ClosedRoomlist;
 	SRWLOCK		_WaitRoom_lock;
@@ -141,6 +144,7 @@ public:
 	UINT	_Sequence;
 	int		_RoomCnt;
 	long	_WaitRoomCount;
+	long	_CountDownRoomCount;
 	long	_PlayRoomCount;
 	int		_BattleServerNo;
 
@@ -161,7 +165,6 @@ public:
 
 private:
 	bool	_bMonitor;
-	CPlayer *_pPlayer;
 	CCpuUsage _Cpu;
 	CEthernet _Ethernet;
 	HANDLE	_hMonitorThread;

@@ -23,7 +23,7 @@ enum enHTTPTYPE
 };
 typedef struct st_RoomPlayerInfo
 {
-	UINT64 AccountNo;
+	INT64 AccountNo;
 	int  Index;
 }RoomPlayerInfo;
 
