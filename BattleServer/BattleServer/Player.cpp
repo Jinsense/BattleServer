@@ -117,14 +117,12 @@ void CPlayer::OnGame_ClientLeave()
 	//	플레이 중인 방에서 유저가 나감을 다른 유저들에게 전달
 	std::map<int, BATTLEROOM*>::iterator Map_iter;
 	std::list<RoomPlayerInfo*>::iterator Room_iter;
-	CPacket * pPacket = CPacket::Alloc();
+//	CPacket * pPacket = CPacket::Alloc();
 	WORD Type = en_PACKET_CS_GAME_RES_LEAVE_USER;
-	*pPacket << Type << _RoomNo << _AccountNo;
-	pPacket->AddRef();
-
+//	*pPacket << Type << _RoomNo << _AccountNo;
+//	pPacket->AddRef();
 	AcquireSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
 	Map_iter = _pGameServer->_PlayRoomMap.find(_RoomNo);
-
 	for (Room_iter = (*Map_iter).second->RoomPlayer.begin(); Room_iter != (*Map_iter).second->RoomPlayer.end();)
 	{
 		if ((*Room_iter)->AccountNo == _AccountNo)
@@ -134,12 +132,15 @@ void CPlayer::OnGame_ClientLeave()
 		}
 		else
 		{
+			CPacket * pPacket = CPacket::Alloc();
+			*pPacket << Type << _RoomNo << _AccountNo;
 			SendPacket(pPacket);
+			pPacket->Free();
 			Room_iter++;
 		}
 	}
 	ReleaseSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
-	pPacket->Free();
+//	pPacket->Free();
 	return;
 }
 

@@ -554,7 +554,7 @@ void CGameServer::WaitRoomSizeCheck()
 	//-----------------------------------------------------------
 	//	대기방 갯수 체크 후 Default 값보다 적을 경우 방 생성 호출
 	//-----------------------------------------------------------
-	while (Config.BATTLEROOM_DEFAULT_NUM > _WaitRoomMap.size())
+	while (Config.BATTLEROOM_DEFAULT_NUM > _WaitRoomCount)
 	{
 		WaitRoomCreate();
 	}
@@ -608,8 +608,8 @@ void CGameServer::WaitRoomReadyCheck()
 			(*iter).second->PlayReady = true;
 			(*iter).second->ReadyCount = GetTickCount64();
 
-			_CountDownMap.insert(*iter);
 			InterlockedIncrement(&_CountDownRoomCount);
+			InterlockedDecrement(&_WaitRoomCount);
 
 			WORD Type = en_PACKET_CS_GAME_RES_PLAY_READY;
 			BYTE ReadySec = Config.BATTLEROOM_READYSEC;
@@ -632,9 +632,6 @@ void CGameServer::WaitRoomReadyCheck()
 			*CloseRoomPacket << Type << (*iter).second->RoomNo << _Sequence;
 			_pMaster->SendPacket(CloseRoomPacket);
 			CloseRoomPacket->Free();
-
-			iter = _WaitRoomMap.erase(iter);
-			InterlockedDecrement(&_WaitRoomCount);
 		}
 		else
 			iter++;
@@ -653,13 +650,14 @@ void CGameServer::WaitRoomGameReadyCheck()
 	//-----------------------------------------------------------
 	__int64 now = GetTickCount64();	
 	std::map<int, BATTLEROOM*>::iterator iter;	
+	_TempMap.clear();
 	AcquireSRWLockExclusive(&_WaitRoom_lock);
-	for (iter = _CountDownMap.begin(); iter != _CountDownMap.end();)
+	for (iter = _WaitRoomMap.begin(); iter != _WaitRoomMap.end();)
 	{
 		if (true == (*iter).second->PlayReady && now - (*iter).second->ReadyCount > (Config.BATTLEROOM_READYSEC * 1000))
 		{
 			_TempMap.insert(*iter);
-			iter = _CountDownMap.erase(iter);
+			iter = _WaitRoomMap.erase(iter);
 			InterlockedDecrement(&_CountDownRoomCount);
 		}
 		else

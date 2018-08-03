@@ -122,7 +122,6 @@ public:
 
 	std::map<int, BATTLEROOM*> _WaitRoomMap;
 	std::map<int, BATTLEROOM*> _PlayRoomMap;
-	std::map<int, BATTLEROOM*> _CountDownMap;
 	std::map<int, BATTLEROOM*> _TempMap;
 	std::list<int> _ClosedRoomlist;
 	SRWLOCK		_WaitRoom_lock;
