@@ -24,14 +24,13 @@ CPlayer::~CPlayer()
 void CPlayer::OnAuth_ClientJoin()
 {
 	//	해당 플레이어 접속으로 인한 게임상의 데이터 할당 및 준비
-
+	_RoomNo = NULL;
 	return;
 }
 
 void CPlayer::OnAuth_ClientLeave()
 {
 	//	인증과정에서만 특별하게 사용했던 데이터가 있다면 정리 (아무것도 안할 수도 있음)
-
 	return;
 }
 
@@ -115,32 +114,7 @@ void CPlayer::OnGame_ClientLeave()
 	//	게임 컨텐츠상의 플레이어 정리 ( 월드맵에서 제거, 파티정리 등등 )
 	//------------------------------------------------------------
 	//	플레이 중인 방에서 유저가 나감을 다른 유저들에게 전달
-	std::map<int, BATTLEROOM*>::iterator Map_iter;
-	std::list<RoomPlayerInfo*>::iterator Room_iter;
-//	CPacket * pPacket = CPacket::Alloc();
-	WORD Type = en_PACKET_CS_GAME_RES_LEAVE_USER;
-//	*pPacket << Type << _RoomNo << _AccountNo;
-//	pPacket->AddRef();
-	AcquireSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
-	Map_iter = _pGameServer->_PlayRoomMap.find(_RoomNo);
-	for (Room_iter = (*Map_iter).second->RoomPlayer.begin(); Room_iter != (*Map_iter).second->RoomPlayer.end();)
-	{
-		if ((*Room_iter)->AccountNo == _AccountNo)
-		{
-			Room_iter = (*Map_iter).second->RoomPlayer.erase(Room_iter);
-			continue;
-		}
-		else
-		{
-			CPacket * pPacket = CPacket::Alloc();
-			*pPacket << Type << _RoomNo << _AccountNo;
-			SendPacket(pPacket);
-			pPacket->Free();
-			Room_iter++;
-		}
-	}
-	ReleaseSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
-//	pPacket->Free();
+	OnRoomLeavePlayer_Game();
 	return;
 }
 
@@ -307,28 +281,28 @@ void CPlayer::Auth_ReqLogin(CPacket *pPacket)
 void CPlayer::Auth_ReqEnterRoom(CPacket *pPacket)
 {
 	INT64 AccountNo = NULL;
-//	int RoomNo = NULL;
+	int RoomNo = NULL;
 	char EnterToken[32] = { 0, };
-	*pPacket >> AccountNo >> _RoomNo;
+	*pPacket >> AccountNo >> RoomNo;
 	pPacket->PopData((char*)&EnterToken, sizeof(EnterToken));
 
 	if (false == AccountnoCheck(AccountNo))
 		return;
-	BATTLEROOM * Room = FindWaitRoom(_RoomNo);
+	BATTLEROOM * Room = FindWaitRoom(RoomNo);
 	if (nullptr == Room)
 		return;
-	if (false == WaitRoomCheck(Room->RoomReady))
+	if (false == WaitRoomCheck(Room))
 		return;
-	if (false == EnterTokenCheck(EnterToken, Room->Entertoken))
+	if (false == EnterTokenCheck(EnterToken, Room->Entertoken, Room->RoomNo))
 		return;
 	if (false == WaitRoomUserNumCheck(Room))
 		return;
 
-	RoomEnterSuccess(Room);			//	방 입장 성공 패킷 전송
+	if(true == RoomEnterSuccess(Room))			//	방 입장 성공 패킷 전송
+		RoomPlayerReadyCheck(Room);			//	대기방 플레이 전환 검사
 	RoomEnterPlayer(Room);			//	기존 유저 + 방 입장한 유저에게 입장한 유저 정보 전송
 	RoomPlayerInfoSendPacket(Room, AccountNo);	//	기존에 존재하던 유저들 정보를 새로 입장한 유저에게 전송
-	RoomPlayerReadyCheck(Room);		//	방에 인원이 가득 찼는지 검사 후 대기방 플레이 전환 검사
-
+	
 	return;
 }
 
@@ -424,17 +398,17 @@ BATTLEROOM * CPlayer::FindWaitRoom(int RoomNo)
 	return (*iter).second;
 }
 
-bool CPlayer::WaitRoomCheck(bool RoomReady)
+bool CPlayer::WaitRoomCheck(BATTLEROOM * Room)
 {
 	//	대기방인지 확인
-	if (true == RoomReady)
+	if (true == Room->RoomReady)
 	{
 		//	대기방이 아님 패킷 전송
 		CPacket * newPacket = CPacket::Alloc();
 		BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
 		BYTE Result = NOT_READYROOM;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
+		*newPacket << Type << _AccountNo << Room->RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -442,7 +416,7 @@ bool CPlayer::WaitRoomCheck(bool RoomReady)
 	return true;
 }
 
-bool CPlayer::EnterTokenCheck(char * EnterToken, char * RoomToken)
+bool CPlayer::EnterTokenCheck(char * EnterToken, char * RoomToken, int RoomNo)
 {
 	//	EnterToken 일치할 경우 입장 허용
 	if (0 != strncmp(EnterToken, RoomToken, sizeof(EnterToken)))
@@ -452,7 +426,7 @@ bool CPlayer::EnterTokenCheck(char * EnterToken, char * RoomToken)
 		BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
 		BYTE Result = ENTERTOKEN_FAIL;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
+		*newPacket << Type << _AccountNo << RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -470,7 +444,7 @@ bool CPlayer::WaitRoomUserNumCheck(BATTLEROOM * Room)
 		BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
 		BYTE Result = ROOMUSER_MAX;
 		WORD Type = en_PACKET_CS_GAME_RES_ENTER_ROOM;
-		*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
+		*newPacket << Type << _AccountNo << Room->RoomNo << MaxUser << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -478,19 +452,20 @@ bool CPlayer::WaitRoomUserNumCheck(BATTLEROOM * Room)
 	return true;
 }
 
-void CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
+bool CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
 {
 	//	_RoomNo에 방 번호와 RoomPlayer 구조체에 Session Index번호 지정
 	//	현재는 락을 걸지 않았지만 차후 문제가 생길경우 락을 추가하여 해결하자
-	//	_RoomNo = RoomNo;
-
+	_RoomNo = Room->RoomNo;
+	int CurUser = NULL;
 	RoomPlayerInfo * pInfo = _pGameServer->_RoomPlayerPool->Alloc();
 	pInfo->AccountNo = _AccountNo;
 	pInfo->Index = _iArrayIndex;
 	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	Room->RoomPlayer.push_back(pInfo);
+	CurUser = InterlockedIncrement(&Room->CurUser);
 	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
-	Room->CurUser++;
+
 	//	방 입장 응답 패킷 전송
 	CPacket * newPacket = CPacket::Alloc();
 	BYTE MaxUser = Config.BATTLEROOM_MAX_USER;
@@ -499,7 +474,11 @@ void CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
 	*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 	SendPacket(newPacket);
 	newPacket->Free();
-	return;
+
+	if (Room->MaxUser == CurUser)
+		return true;
+	else
+		return false;
 }
 
 void CPlayer::RoomEnterPlayer(BATTLEROOM * Room)
@@ -558,10 +537,100 @@ void CPlayer::RoomPlayerReadyCheck(BATTLEROOM * Room)
 	//	방의 인원이 전부 꽉찼는지 검사 후 RoomReady 플래그 전환
 	//	플래그 바꾸면 Auth에서 감지 후 방 시작 패킷 전송
 	//-----------------------------------------------------------
-	if (0 == Room->MaxUser - Room->CurUser)
+	Room->RoomReady = true;
+	//	마스터 서버로 대기 방 닫힘 패킷 전송
+	AcquireSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
+	_pGameServer->_ClosedRoomlist.push_back(Room->RoomNo);
+	ReleaseSRWLockExclusive(&_pGameServer->_ClosedRoom_lock);
+
+	CPacket * CloseRoomPacket = CPacket::Alloc();
+	WORD Type = en_PACKET_BAT_MAS_REQ_CLOSED_ROOM;
+	*CloseRoomPacket << Type << Room->RoomNo << _pGameServer->_Sequence;
+	_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
+	CloseRoomPacket->Free();
+
+	return;
+}
+
+void CPlayer::OnRoomLeavePlayer_Auth()
+{
+	std::map<int, BATTLEROOM*>::iterator iter;
+	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	iter = _pGameServer->_WaitRoomMap.find(_RoomNo);
+	if (iter != _pGameServer->_WaitRoomMap.end())
 	{
-		Room->RoomReady = true;
+		if (false == (*iter).second->PlayReady)
+		{
+			//	마스터 서버로 배틀 서버의 대기방에서 유저가 나감 패킷 전송
+			CPacket *pPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_BAT_MAS_REQ_LEFT_USER;
+			*pPacket << Type << _RoomNo << _AccountNo << _pGameServer->_Sequence;
+			_pGameServer->_pMaster->SendPacket(pPacket);
+			pPacket->Free();
+		}
+		//	방의 리스트에서 해당 유저 삭제
+		for (auto i = (*iter).second->RoomPlayer.begin(); i != (*iter).second->RoomPlayer.end();)
+		{
+			if (_AccountNo == (*i)->AccountNo)
+			{
+				i = (*iter).second->RoomPlayer.erase(i);
+				InterlockedDecrement(&(*iter).second->CurUser);
+				break;
+			}
+			else
+				i++;
+		}
 	}
+	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	if (true == (*iter).second->RoomPlayer.empty())
+		return;
+
+	//	해당 방의 유저들에게 해당 플레이어 방에서 나감 패킷 전송
+
+	WORD Type = en_PACKET_CS_GAME_RES_REMOVE_USER;
+
+	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	for (auto j = (*iter).second->RoomPlayer.begin(); j != (*iter).second->RoomPlayer.end(); j++)
+	{
+		if (_AccountNo == (*j)->AccountNo)
+			continue;
+		CPacket *newPacket = CPacket::Alloc();
+		*newPacket << Type << _RoomNo << _AccountNo;
+		_pGameServer->_pSessionArray[(*j)->Index]->SendPacket(newPacket);
+		newPacket->Free();
+	}
+	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	return;
+}
+
+void CPlayer::OnRoomLeavePlayer_Game()
+{
+	std::map<int, BATTLEROOM*>::iterator Map_iter;
+	std::list<RoomPlayerInfo*>::iterator Room_iter;
+	//	CPacket * pPacket = CPacket::Alloc();
+	WORD Type = en_PACKET_CS_GAME_RES_LEAVE_USER;
+	//	*pPacket << Type << _RoomNo << _AccountNo;
+	//	pPacket->AddRef();
+	AcquireSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
+	Map_iter = _pGameServer->_PlayRoomMap.find(_RoomNo);
+	for (Room_iter = (*Map_iter).second->RoomPlayer.begin(); Room_iter != (*Map_iter).second->RoomPlayer.end();)
+	{
+		if ((*Room_iter)->AccountNo == _AccountNo)
+		{
+			Room_iter = (*Map_iter).second->RoomPlayer.erase(Room_iter);
+			continue;
+		}
+		else
+		{
+			CPacket * pPacket = CPacket::Alloc();
+			*pPacket << Type << _RoomNo << _AccountNo;
+			SendPacket(pPacket);
+			pPacket->Free();
+			Room_iter++;
+		}
+	}
+	ReleaseSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
+	//	pPacket->Free();
 	return;
 }
 

@@ -75,6 +75,8 @@ public:
 	virtual bool OnHttp_Result_SelectAccount(string temp) = 0;
 	virtual bool OnHttp_Result_SelectContents(string temp) = 0;
 	virtual void OnHttp_Result_Success() = 0;
+	virtual void OnRoomLeavePlayer_Auth() = 0;
+	virtual void OnRoomLeavePlayer_Game() = 0;
 
 	void	Init();
 	void	Set(CBattleServer *pBattleServer);

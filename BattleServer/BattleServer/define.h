@@ -32,7 +32,7 @@ typedef struct st_BattleRoom
 	char Entertoken[32] = { 0, };	//	Entertoken;
 	int RoomNo;			//	방 번호
 	int MaxUser;		//	최대 유저
-	int CurUser;		//	현재 유저
+	long CurUser;		//	현재 유저
 	__int64 ReadyCount;	//	대기방 준비완료 시간
 	bool RoomReady;		//	대기방 준비완료 플래그
 	bool PlayReady;		//	게임준비 완료 플래그

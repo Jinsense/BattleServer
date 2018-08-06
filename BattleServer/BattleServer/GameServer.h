@@ -33,7 +33,6 @@ public:
 	void	OnAuth_Update();
 	void	OnGame_Update();
 	void	OnError(int iErrorCode, WCHAR *szError);
-	void	OnRoomLeavePlayer(int RoomNo, INT64 AccountNo);
 
 	//-----------------------------------------------------------
 	//	모니터링 관련 스레드 / 함수
@@ -63,7 +62,7 @@ public:
 			wprintf(L"[GameServer :: LanMonitorThread] Init Error\n");
 			return false;
 		}
-//		pLanMonitorThread->LanMonitorThread_Update();
+		pLanMonitorThread->LanMonitorThread_Update();
 		return true;
 	}
 	bool	LanMonitorThread_Update();
@@ -78,7 +77,7 @@ public:
 			std::wprintf(L"[Server :: LanMonitoringThread] Init Error\n");
 			return false;
 		}
-//		_pLanMasterCheckThread->LanMasterCheckThead_Update();
+		_pLanMasterCheckThread->LanMasterCheckThead_Update();
 		return true;
 	}
 	void	LanMasterCheckThead_Update();

@@ -537,9 +537,7 @@ void CBattleServer::ProcAuth_LogoutInAuth()
 			_Monitor_SessionAuthMode--;
 			//	대기방에 접속해 있는 유저인지 검사
 			if (NULL != pSession->_RoomNo)
-			{
-				OnRoomLeavePlayer(pSession->_RoomNo, pSession->_AccountNo);
-			}
+				pSession->OnRoomLeavePlayer_Auth();
 		}
 	}
 	return;

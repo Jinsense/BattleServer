@@ -25,6 +25,8 @@ public:
 	bool	OnHttp_Result_SelectAccount(string temp);
 	bool	OnHttp_Result_SelectContents(string temp);
 	void	OnHttp_Result_Success();
+	void	OnRoomLeavePlayer_Auth();
+	void	OnRoomLeavePlayer_Game();
 
 	//-----------------------------------------------------------
 	//	패킷처리 함수 - AuthPacket
@@ -45,10 +47,10 @@ public:
 	void	HttpJsonCall();
 	bool	AccountnoCheck(INT64 AccountNo);
 	BATTLEROOM * FindWaitRoom(int RoomNo);
-	bool	WaitRoomCheck(bool RoomReady);
-	bool	EnterTokenCheck(char * EnterToken, char * RoomToken);
+	bool	WaitRoomCheck(BATTLEROOM * Room);
+	bool	EnterTokenCheck(char * EnterToken, char * RoomToken, int RoomNo);
 	bool	WaitRoomUserNumCheck(BATTLEROOM * Room);
-	void	RoomEnterSuccess(BATTLEROOM * Room);
+	bool	RoomEnterSuccess(BATTLEROOM * Room);
 	void	RoomEnterPlayer(BATTLEROOM * Room);
 	void	RoomPlayerInfoSendPacket(BATTLEROOM * Room, INT64 AccountNo);
 	void	RoomPlayerReadyCheck(BATTLEROOM * Room);
