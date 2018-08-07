@@ -33,6 +33,8 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	ZeroMemory(&_OldConnectToken, sizeof(_OldConnectToken));
 	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
 	_CreateTokenTick = NULL;
+	NewConnectTokenCreate();
+	strncpy(_OldConnectToken, _CurConnectToken, sizeof(_CurConnectToken));
 
 	_pMaster = new CLanMasterClient;
 	_pMaster->Constructor(this);
@@ -66,8 +68,6 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	PdhAddCounter(_CpuQuery, L"\\Memory\\Pool Nonpaged Bytes", NULL, &_MemoryNonpagedBytes);
 	PdhAddCounter(_CpuQuery, L"\\Process(MMOGameServer)\\Private Bytes", NULL, &_ProcessPrivateBytes);
 	PdhCollectQueryData(_CpuQuery);
-	
-	NewConnectTokenCreate();
 }
 
 CGameServer::~CGameServer()
@@ -214,7 +214,7 @@ bool CGameServer::MonitorThread_update()
 		{
 			wprintf(L"\n\n");
 			wprintf(L"////////////////////////////////////////////////////////////////////////////////\n");
-			wprintf(L"	ServerStart : %d/%d/%d %d:%d:%d\n\n", year, month, day, hour, min, sec);
+			wprintf(L"	[ ServerStart : %d/%d/%d %d:%d:%d ]\n\n", year, month, day, hour, min, sec);
 			wprintf(L"////////////////////////////////////////////////////////////////////////////////\n");
 			wprintf(L"	%d/%d/%d %d:%d:%d\n\n", pTime->tm_year + 1900, pTime->tm_mon + 1,
 				pTime->tm_mday, pTime->tm_hour, pTime->tm_min, pTime->tm_sec);
@@ -395,7 +395,7 @@ void CGameServer::EntertokenCreate(char *pBuff)
 
 void CGameServer::NewConnectTokenCreate()
 {
-	strcpy_s(_OldConnectToken, sizeof(_OldConnectToken), _CurConnectToken);
+	strncpy(_OldConnectToken, _CurConnectToken, sizeof(_CurConnectToken));
 
 	for (int i = 0; i < 32; i++)
 		_CurConnectToken[i] = rand() % 26 + 97;
