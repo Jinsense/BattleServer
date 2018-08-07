@@ -17,8 +17,9 @@ CNetSession::CNetSession() : _RecvQ(BUF), _SendQ(BUF), _CompleteSendPacket(BUF)
 	_LogOutFlag = false;
 	_AuthToGameFlag = false;
 	_AccountNo = NULL;
+	_HeartBeat = NULL;
 
-	_pLog->GetInstance();
+	_pLog = _pLog->GetInstance();
 }
 
 CNetSession::~CNetSession()
@@ -32,6 +33,14 @@ CNetSession::~CNetSession()
 		//				_pSessionArray[i]->_CompleteSendPacket.Dequeue(pPacket);
 		pPacket->Free();
 	}
+}
+
+void CNetSession::Init()
+{
+	_RecvQ.Initialize(RINGBUFFERSIZE);
+	_SendQ.Initialize(RINGBUFFERSIZE);
+	_CompleteSendPacket.Initialize(RINGBUFFERSIZE);
+	return;
 }
 
 void CNetSession::Set(CBattleServer *pBattleServer)

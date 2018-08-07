@@ -33,7 +33,6 @@ public:
 	void	OnAuth_Update();
 	void	OnGame_Update();
 	void	OnError(int iErrorCode, WCHAR *szError);
-	void	OnRoomLeavePlayer(int RoomNo, INT64 AccountNo);
 
 	//-----------------------------------------------------------
 	//	모니터링 관련 스레드 / 함수
@@ -63,7 +62,7 @@ public:
 			wprintf(L"[GameServer :: LanMonitorThread] Init Error\n");
 			return false;
 		}
-//		pLanMonitorThread->LanMonitorThread_Update();
+		pLanMonitorThread->LanMonitorThread_Update();
 		return true;
 	}
 	bool	LanMonitorThread_Update();
@@ -98,7 +97,7 @@ public:
 	}
 	void	HttpSendThread_Update();
 	void	HttpSend_Select(CRingBuffer * pBuffer);
-	void	HttpSend_Update(CRingBuffer * pBuffer);
+	void	HttpSend_Update(CRingBuffer * pBuffer);	
 	string	HttpPacket_Create(Json::Value PostData);
 	//-----------------------------------------------------------
 	//	사용자 함수 - OnAuth_Update
@@ -113,16 +112,13 @@ public:
 	void	PlayRoomGameEndCheck();
 	void	PlayRoomDestroyCheck();
 
-	//-----------------------------------------------------------
-	//	더미 테스트 함수
-	//-----------------------------------------------------------
-	void	PlayRoomGameEndChange();	//	PlayRoomMap에 있는 방을 GameEnd 플래그를 true로 변경 
-
 private:
 	void	EntertokenCreate(char *pBuff);
 	void	NewConnectTokenCreate();
 
 public:
+	CPlayer * _pPlayer;
+
 	std::map<int, BATTLEROOM*> _WaitRoomMap;
 	std::map<int, BATTLEROOM*> _PlayRoomMap;
 	std::map<int, BATTLEROOM*> _TempMap;
@@ -131,6 +127,7 @@ public:
 	SRWLOCK		_PlayRoom_lock;
 	SRWLOCK		_ClosedRoom_lock;
 	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
+	CMemoryPool<RoomPlayerInfo> *_RoomPlayerPool;
 	CMemoryPool<CRingBuffer> *_HttpPool;
 	CLockFreeQueue<CRingBuffer*> _HttpQueue;
 	HANDLE	_hHttpEvent;
@@ -145,6 +142,7 @@ public:
 	UINT	_Sequence;
 	int		_RoomCnt;
 	long	_WaitRoomCount;
+	long	_CountDownRoomCount;
 	long	_PlayRoomCount;
 	int		_BattleServerNo;
 
@@ -165,7 +163,6 @@ public:
 
 private:
 	bool	_bMonitor;
-	CPlayer *_pPlayer;
 	CCpuUsage _Cpu;
 	CEthernet _Ethernet;
 	HANDLE	_hMonitorThread;

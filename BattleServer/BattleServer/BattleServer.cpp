@@ -140,6 +140,7 @@ void CBattleServer::SetSessionArray(int iArrayIndex, CNetSession *pSession)
 {
 	_pSessionArray[iArrayIndex] = pSession;
 	_pSessionArray[iArrayIndex]->Set(this);
+	_pSessionArray[iArrayIndex]->Init();
 	return;
 }
 
@@ -151,6 +152,7 @@ bool CBattleServer::CreateThread()
 	_hSendThread = (HANDLE)_beginthreadex(NULL, 0, &SendThread, (LPVOID)this, 0, NULL);
 	_hAuthThread = (HANDLE)_beginthreadex(NULL, 0, &AuthThread, (LPVOID)this, 0, NULL);
 	_hGameUpdateThread = (HANDLE)_beginthreadex(NULL, 0, &GameUpdateThread, (LPVOID)this, 0, NULL);
+	_hHeartBeatThread = (HANDLE)_beginthreadex(NULL, 0, &HeartBeatThread, (LPVOID)this, 0, NULL);
 	return true;
 }
 
@@ -240,14 +242,12 @@ void CBattleServer::StartRecvPost(int Index)
 		int LastError = WSAGetLastError();
 		if (10060 == LastError)
 		{
-			_pLog->Log(L"shutdown", LOG_SYSTEM, L"Recv SocketError - Code %d", LastError);
 			shutdown(_pSessionArray[Index]->_ClientInfo.Sock, SD_BOTH);
 		}
 		else if (ERROR_IO_PENDING != LastError)
 		{
 			if (true != SessionAcquireFree(Index))
 			{
-				_pLog->Log(L"shutdown", LOG_SYSTEM, L"Recv SocketError - Code %d", LastError);
 				shutdown(_pSessionArray[Index]->_ClientInfo.Sock, SD_BOTH);
 			}
 		}
@@ -295,14 +295,12 @@ void CBattleServer::RecvPost(int Index)
 		int LastError = WSAGetLastError();
 		if (10060 == LastError)
 		{
-			_pLog->Log(L"shutdown", LOG_SYSTEM, L"Recv SocketError - Code %d", LastError);
 			shutdown(_pSessionArray[Index]->_ClientInfo.Sock, SD_BOTH);
 		}
 		else if (ERROR_IO_PENDING != LastError)
 		{
 			if (true != SessionAcquireFree(Index))
 			{
-				_pLog->Log(L"shutdown", LOG_SYSTEM, L"Recv SocketError - Code %d", LastError);
 				shutdown(pSession->_ClientInfo.Sock, SD_BOTH);
 			}
 		}
@@ -539,9 +537,7 @@ void CBattleServer::ProcAuth_LogoutInAuth()
 			_Monitor_SessionAuthMode--;
 			//	대기방에 접속해 있는 유저인지 검사
 			if (NULL != pSession->_RoomNo)
-			{
-				OnRoomLeavePlayer(pSession->_RoomNo, pSession->_AccountNo);
-			}
+				pSession->OnRoomLeavePlayer_Auth();
 		}
 	}
 	return;
@@ -610,6 +606,7 @@ void CBattleServer::ProcGame_LogoutInGame()
 		{
 			pSession->_Mode = CNetSession::MODE_LOGOUT_IN_GAME;
 			_Monitor_SessionGameMode--;
+			pSession->OnGame_ClientLeave();
 		}
 	}
 	return;
@@ -628,7 +625,6 @@ void CBattleServer::ProcGame_Logout()
 		if (CNetSession::MODE_LOGOUT_IN_GAME == pSession->_Mode && false == pSession->_SendFlag)
 		{
 			pSession->_Mode = CNetSession::MODE_WAIT_LOGOUT;
-			pSession->OnGame_ClientLeave();
 		}
 	}
 	return;
@@ -681,6 +677,11 @@ void CBattleServer::ProcGame_Release()
 //				_pSessionArray[i]->_CompleteSendPacket.Dequeue(pPacket);
 				pPacket->Free();
 			}
+
+			//	AccountNoMap에서 삭제
+			AcquireSRWLockExclusive(&_AccountNoMap_srwlock);
+			_AccountNoMap.erase(pSession->_AccountNo);
+			ReleaseSRWLockExclusive(&_AccountNoMap_srwlock);
 
 			pSession->_ClientInfo.ClientID = NULL;
 			pSession->_ClientInfo.Port = NULL;
@@ -772,7 +773,7 @@ bool CBattleServer::AuthThread_update()
 bool CBattleServer::GameUpdateThread_update()
 {
 	int Count;
-	while (!_bShutdown)
+ 	while (!_bShutdown)
 	{
 		Sleep(_iGameThread);
 //		Count = 0;
@@ -868,3 +869,18 @@ bool CBattleServer::SendThread_update()
 	return true;
 }
 
+bool CBattleServer::HeartBeatThread_update()
+{
+	UINT64 Now = GetTickCount64();
+	AcquireSRWLockExclusive(&_Srwlock);
+	for (int i = 0; i < _iMaxSession; i++)
+	{
+		if (_pSessionArray[i]->_Mode == CNetSession::MODE_AUTH || _pSessionArray[i]->_Mode == CNetSession::MODE_AUTH_TO_GAME || _pSessionArray[i]->_Mode == CNetSession::MODE_GAME)
+		{
+			if (Now - _pSessionArray[i]->_HeartBeat > Config.USER_TIMEOUT)
+				_pSessionArray[i]->Disconnect();
+		}
+	}
+	ReleaseSRWLockExclusive(&_Srwlock);
+	return true;
+}

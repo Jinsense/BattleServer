@@ -4,6 +4,8 @@
 #include <Windows.h>
 #include <list>
 
+#define		RINGBUFFERSIZE		3000
+
 enum enENTERROOM_RESULT
 {
 	SUCCESS = 1,
@@ -21,7 +23,7 @@ enum enHTTPTYPE
 };
 typedef struct st_RoomPlayerInfo
 {
-	UINT64 AccountNo;
+	INT64 AccountNo;
 	int  Index;
 }RoomPlayerInfo;
 
@@ -30,13 +32,12 @@ typedef struct st_BattleRoom
 	char Entertoken[32] = { 0, };	//	Entertoken;
 	int RoomNo;			//	방 번호
 	int MaxUser;		//	최대 유저
-	int CurUser;		//	현재 유저
+	long CurUser;		//	현재 유저
 	__int64 ReadyCount;	//	대기방 준비완료 시간
 	bool RoomReady;		//	대기방 준비완료 플래그
 	bool PlayReady;		//	게임준비 완료 플래그
 	bool GameEnd;		//	해당 방의 게임이 끝났는지 여부
 	std::list<RoomPlayerInfo*> RoomPlayer;		//	방에 있는 유저 목록
 }BATTLEROOM;
-
 
 #endif

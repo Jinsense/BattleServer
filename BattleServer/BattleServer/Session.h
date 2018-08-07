@@ -75,7 +75,10 @@ public:
 	virtual bool OnHttp_Result_SelectAccount(string temp) = 0;
 	virtual bool OnHttp_Result_SelectContents(string temp) = 0;
 	virtual void OnHttp_Result_Success() = 0;
+	virtual void OnRoomLeavePlayer_Auth() = 0;
+	virtual void OnRoomLeavePlayer_Game() = 0;
 
+	void	Init();
 	void	Set(CBattleServer *pBattleServer);
 	bool	Find_AccountNo(INT64 AccountNO);
 	void	SendPacket(CPacket *pPacket);
@@ -117,6 +120,7 @@ public:
 	CSystemLog	*_pLog;
 	CBattleServer *_pBattleServer;
 
+	UINT64	_HeartBeat;
 };
 
 #endif _BATTLESERVER_SERVER_SESSION_H_

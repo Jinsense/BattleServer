@@ -69,7 +69,9 @@ private:
 	void ProcGame_Logout();
 	void ProcGame_Release();
 
-	//	스레드 함수
+	//-------------------------------------------------------------
+	//	Accept 스레드
+	//-------------------------------------------------------------
 	static unsigned int __stdcall	AcceptThread(void *pParam)
 	{
 		CBattleServer *pAcceptThread = (CBattleServer*)pParam;
@@ -84,6 +86,9 @@ private:
 
 	bool AcceptThread_update();
 
+	//-------------------------------------------------------------
+	//	Auth 스레드
+	//-------------------------------------------------------------
 	static unsigned int __stdcall	AuthThread(void *pParam)
 	{
 		CBattleServer *pAuthThread = (CBattleServer*)pParam;
@@ -97,6 +102,9 @@ private:
 	}
 	bool AuthThread_update();
 
+	//-------------------------------------------------------------
+	//	Game 스레드
+	//-------------------------------------------------------------
 	static unsigned __stdcall	GameUpdateThread(void *pParam)
 	{
 		CBattleServer *pGameUpdateThread = (CBattleServer*)pParam;
@@ -110,7 +118,9 @@ private:
 	}
 	bool GameUpdateThread_update();
 
-
+	//-------------------------------------------------------------
+	//	IOCP 스레드
+	//-------------------------------------------------------------
 	static unsigned __stdcall	IOCPWorkerThread(void *pParam)
 	{
 		CBattleServer *pIOCPWorkerThread = (CBattleServer*)pParam;
@@ -124,6 +134,9 @@ private:
 	}
 	bool IOCPWorkerThread_update();
 
+	//-------------------------------------------------------------
+	//	Send 스레드
+	//-------------------------------------------------------------
 	static unsigned __stdcall	SendThread(void *pParam)
 	{
 		CBattleServer *pSendThread = (CBattleServer*)pParam;
@@ -137,6 +150,21 @@ private:
 	}
 	bool SendThread_update();
 
+	//-------------------------------------------------------------
+	//	HeartBeat 스레드
+	//-------------------------------------------------------------
+	static unsigned __stdcall	HeartBeatThread(void *pParam)
+	{
+		CBattleServer *pHeartBeatThread = (CBattleServer*)pParam;
+		if (NULL == pHeartBeatThread)
+		{
+			wprintf(L"[MMOServer :: SendThread] Init Error\n");
+			return false;
+		}
+		pHeartBeatThread->HeartBeatThread_update();
+		return true;
+	}
+	bool HeartBeatThread_update();
 private:
 	virtual void OnConnectionRequest() = 0;
 	
@@ -147,7 +175,6 @@ private:
 	virtual void OnGame_Update() = 0;
 
 	virtual void OnError(int iErrorCode, WCHAR *szError) = 0;
-	virtual void OnRoomLeavePlayer(int RoomNo, INT64 AccountNo) = 0;
 
 public:
 	int _iMaxSession;
@@ -190,6 +217,9 @@ private:
 
 	//	Send 부
 	HANDLE	_hSendThread;
+
+	//	HeartBeat 
+	HANDLE	_hHeartBeatThread;
 public:
 	CNetSession	**_pSessionArray;
 	SRWLOCK		_Srwlock;
