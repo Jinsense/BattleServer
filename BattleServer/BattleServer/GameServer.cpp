@@ -435,6 +435,7 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 	//-----------------------------------------------------------
 	//	select_account.php 호출
 	//-----------------------------------------------------------
+	int Count = 0;
 	int Index = NULL;
 	INT64 AccountNo = NULL;
 	pBuffer->Dequeue((char*)&Index, sizeof(Index));
@@ -442,15 +443,37 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 	//	Set Post Data
 	Json::Value PostData;
 	PostData["accountno"] = AccountNo;
-	string temp = HttpPacket_Create(PostData);
+	string temp;
+	while (Count < 50)
+	{
+		Json::Reader reader;
+		Json::Value result;
+		temp = HttpPacket_Create(PostData);
+		bool Res = reader.parse(temp, result);
+		if (!Res)
+			Count++;
+		else
+			break;	
+	}	
 	//	Result Check
 	if (false == _pSessionArray[Index]->OnHttp_Result_SelectAccount(temp))
 		return;
 	temp.clear();
+	Count = 0;
 	//-----------------------------------------------------------
 	//	select_contents.php 호출
 	//-----------------------------------------------------------
-	temp = HttpPacket_Create(PostData);
+	while (Count < 50)
+	{
+		Json::Reader reader;
+		Json::Value result;
+		temp = HttpPacket_Create(PostData);
+		bool Res = reader.parse(temp, result);
+		if (!Res)
+			Count++;
+		else
+			break;
+	}
 	//	Result Check
 	if (false == _pSessionArray[Index]->OnHttp_Result_SelectContents(temp))
 		return;
