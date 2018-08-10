@@ -132,7 +132,7 @@ bool CBattleServer::Start(WCHAR *szListenIP, int iPort, int iWorkerThread, bool 
 
 bool CBattleServer::Stop()
 {
-
+	_bShutdown = true;
 	return true;
 }
 

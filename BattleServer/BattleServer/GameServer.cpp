@@ -14,6 +14,7 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 	InitializeSRWLock(&_WaitRoom_lock);
 	InitializeSRWLock(&_PlayRoom_lock);
 	InitializeSRWLock(&_ClosedRoom_lock);
+	InitializeSRWLock(&_RoomPlayer_lock);
 	_BattleRoomPool = new CMemoryPool<BATTLEROOM>();
 	_RoomPlayerPool = new CMemoryPool<RoomPlayerInfo>();
 	_HttpPool = new CMemoryPool<CRingBuffer>();
@@ -190,6 +191,8 @@ bool CGameServer::MonitorThread_update()
 			wprintf(L"	CountDownRoom		:	%d%\n", _CountDownRoomCount);
 			wprintf(L"	PlayRoom		:	%d%\n", _PlayRoomCount);
 			wprintf(L"	BattleRoomPool UseCount	:	%d%\n", _BattleRoomPool->GetUseCount());
+			wprintf(L"	RoomPlayerPool UseCount	:	%d%\n", _RoomPlayerPool->GetUseCount());
+			wprintf(L"	HttpPool UseCount	:	%d%\n\n", _HttpPool->GetUseCount());
 		}
 		_Monitor_AcceptSocket = 0;
 		_Monitor_Counter_PacketSend = 0;
@@ -426,6 +429,7 @@ void CGameServer::HttpSendThread_Update()
 				break;
 			}
 			}
+			_HttpPool->Free(pBuffer);
 		}
 	}
 }

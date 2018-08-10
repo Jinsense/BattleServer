@@ -573,6 +573,7 @@ void CPlayer::OnRoomLeavePlayer_Auth()
 		{
 			if (_AccountNo == (*i)->AccountNo)
 			{
+				_pGameServer->_RoomPlayerPool->Free(*i);
 				i = (*iter).second->RoomPlayer.erase(i);
 				InterlockedDecrement(&(*iter).second->CurUser);
 				break;
@@ -617,6 +618,7 @@ void CPlayer::OnRoomLeavePlayer_Game()
 	{
 		if ((*Room_iter)->AccountNo == _AccountNo)
 		{
+			_pGameServer->_RoomPlayerPool->Free(*Room_iter);
 			Room_iter = (*Map_iter).second->RoomPlayer.erase(Room_iter);
 			continue;
 		}

@@ -47,6 +47,7 @@ int main()
 		{
 		case 'q': case 'Q':
 		{
+			Server.Stop();
 			bFlag = false;
 
 		}

@@ -126,6 +126,7 @@ public:
 	SRWLOCK		_WaitRoom_lock;
 	SRWLOCK		_PlayRoom_lock;
 	SRWLOCK		_ClosedRoom_lock;
+	SRWLOCK		_RoomPlayer_lock;
 	CMemoryPool<BATTLEROOM> *_BattleRoomPool;
 	CMemoryPool<RoomPlayerInfo> *_RoomPlayerPool;
 	CMemoryPool<CRingBuffer> *_HttpPool;
