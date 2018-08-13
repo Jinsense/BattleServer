@@ -884,3 +884,8 @@ bool CBattleServer::HeartBeatThread_update()
 	ReleaseSRWLockExclusive(&_Srwlock);
 	return true;
 }
+
+int CBattleServer::ConnectInfo_UseCount()
+{
+	return _pMemoryPool_ConnectInfo->GetUseCount();
+}

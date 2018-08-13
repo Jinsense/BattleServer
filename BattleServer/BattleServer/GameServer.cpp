@@ -192,7 +192,9 @@ bool CGameServer::MonitorThread_update()
 			wprintf(L"	PlayRoom		:	%d%\n", _PlayRoomCount);
 			wprintf(L"	BattleRoomPool UseCount	:	%d%\n", _BattleRoomPool->GetUseCount());
 			wprintf(L"	RoomPlayerPool UseCount	:	%d%\n", _RoomPlayerPool->GetUseCount());
-			wprintf(L"	HttpPool UseCount	:	%d%\n\n", _HttpPool->GetUseCount());
+			wprintf(L"	HttpPool UseCount	:	%d%\n", _HttpPool->GetUseCount());
+			wprintf(L"	InfoPool UseCount	:	%d%\n\n", ConnectInfo_UseCount());
+			
 		}
 		_Monitor_AcceptSocket = 0;
 		_Monitor_Counter_PacketSend = 0;
@@ -429,6 +431,7 @@ void CGameServer::HttpSendThread_Update()
 				break;
 			}
 			}
+			pBuffer->Clear();
 			_HttpPool->Free(pBuffer);
 		}
 	}
@@ -448,10 +451,10 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 	Json::Value PostData;
 	PostData["accountno"] = AccountNo;
 	string temp;
+	Json::Reader reader;
+	Json::Value result;
 	while (Count < 50)
 	{
-		Json::Reader reader;
-		Json::Value result;
 		temp = HttpPacket_Create(PostData);
 		bool Res = reader.parse(temp, result);
 		if (!Res)
@@ -469,8 +472,6 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 	//-----------------------------------------------------------
 	while (Count < 50)
 	{
-		Json::Reader reader;
-		Json::Value result;
 		temp = HttpPacket_Create(PostData);
 		bool Res = reader.parse(temp, result);
 		if (!Res)

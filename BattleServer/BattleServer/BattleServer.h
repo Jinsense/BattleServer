@@ -32,6 +32,7 @@ public:
 
 	bool Start(WCHAR *szListenIP, int iPort, int iWorkerThread, bool bEnableNagle, BYTE byPacketCode, BYTE byPacketKey1, BYTE byPacketKey2);
 	bool Stop();
+	int	 ConnectInfo_UseCount();
 
 	//	외부에서 세션객체 연결
 	void SetSessionArray(int iArrayIndex, CNetSession *pSession);

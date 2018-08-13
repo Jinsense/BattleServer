@@ -268,6 +268,14 @@ void CPlayer::Auth_ReqLogin(CPacket *pPacket)
 	pPacket->PopData((char*)_ConnectToken, sizeof(_ConnectToken));
 	*pPacket >> _Version;
 
+	BYTE Status = CLIENT_ERROR;
+	CPacket * newPacket = CPacket::Alloc();
+	WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+	*newPacket << Type << Status;
+	SendPacket(newPacket);
+	//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+	newPacket->Free();
+	return;
 
 	if (false == VersionCheck())
 		return;
@@ -554,6 +562,7 @@ void CPlayer::RoomPlayerReadyCheck(BATTLEROOM * Room)
 
 void CPlayer::OnRoomLeavePlayer_Auth()
 {
+	bool End = false;
 	std::map<int, BATTLEROOM*>::iterator iter;
 	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	iter = _pGameServer->_WaitRoomMap.find(_RoomNo);
@@ -582,7 +591,12 @@ void CPlayer::OnRoomLeavePlayer_Auth()
 				i++;
 		}
 	}
+	else
+		End = true;
 	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
+	if (true == End)
+		return;
+
 	if (true == (*iter).second->RoomPlayer.empty())
 		return;
 
