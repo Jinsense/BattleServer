@@ -7,6 +7,7 @@
 
 CRingBuffer::CRingBuffer()
 {
+	Initialize(RINGBUFSIZE);
 	InitializeSRWLock(&m_srw);
 	m_iFront = 0;
 	m_iRear = 0;
@@ -37,6 +38,11 @@ void CRingBuffer::Clear()
 	ZeroMemory(m_pBuffer, m_iBufferSize);
 	m_iFront = 0;
 	m_iRear = 0;
+}
+
+void CRingBuffer::Delete()
+{
+	delete[] m_pBuffer;
 }
 
 int CRingBuffer::GetBufferSize()

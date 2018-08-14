@@ -1,6 +1,7 @@
 #ifndef _BATTLESERVER_LIB_RINGBUFFER_H_
 #define _BATTLESERVER_LIB_RINGBUFFER_H_
 
+#define		RINGBUFSIZE		500
 
 class CRingBuffer
 {
@@ -11,6 +12,7 @@ public:
 public:
 	void	Initialize(int iBufferSize);
 	void	Clear();
+	void	Delete();
 	char*	GetBufferPtr() { return m_pBuffer; }
 	char*	GetWriteBufferPtr() { return &m_pBuffer[m_iRear]; }
 	char*	GetReadBufferPtr() { return &m_pBuffer[m_iFront]; }

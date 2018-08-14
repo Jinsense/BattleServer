@@ -268,15 +268,6 @@ void CPlayer::Auth_ReqLogin(CPacket *pPacket)
 	pPacket->PopData((char*)_ConnectToken, sizeof(_ConnectToken));
 	*pPacket >> _Version;
 
-	BYTE Status = CLIENT_ERROR;
-	CPacket * newPacket = CPacket::Alloc();
-	WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-	*newPacket << Type << Status;
-	SendPacket(newPacket);
-	//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-	newPacket->Free();
-	return;
-
 	if (false == VersionCheck())
 		return;
 	
@@ -359,7 +350,8 @@ void CPlayer::HttpJsonCall()
 	//	RingBuffer-메모리풀 생성하여 HttpQueue에 저장한 후 이벤트 호출
 	WORD Type = SELECT;
 	CRingBuffer *pBuffer = _pGameServer->_HttpPool->Alloc();
-	pBuffer->Initialize(500);
+//	pBuffer->Initialize(500);
+	pBuffer->Clear();
 	pBuffer->Enqueue((char*)&Type, sizeof(Type));
 	pBuffer->Enqueue((char*)&_iArrayIndex, sizeof(_iArrayIndex));
 	pBuffer->Enqueue((char*)&_AccountNo, sizeof(_AccountNo));
