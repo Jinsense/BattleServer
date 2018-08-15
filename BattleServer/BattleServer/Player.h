@@ -43,6 +43,7 @@ public:
 	//	사용자 함수
 	//-----------------------------------------------------------
 	bool	VersionCheck();
+	bool	ConnectTokenCheck(char * ConnectToken);
 	bool	OverlappLoginCheck();
 	void	HttpJsonCall();
 	bool	AccountnoCheck(INT64 AccountNo);

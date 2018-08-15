@@ -271,6 +271,9 @@ void CPlayer::Auth_ReqLogin(CPacket *pPacket)
 	if (false == VersionCheck())
 		return;
 	
+	if (false == ConnectTokenCheck(_ConnectToken))
+		return;
+
 	if (false == OverlappLoginCheck())
 		return;
 	HttpJsonCall();
@@ -320,6 +323,25 @@ bool CPlayer::VersionCheck()
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
+	}
+	return true;
+}
+
+bool CPlayer::ConnectTokenCheck(char * ConnectToken)
+{
+	if (0 != strncmp(ConnectToken, _pGameServer->_CurConnectToken, sizeof(_pGameServer->_CurConnectToken)))
+	{
+		if (0 != strncmp(ConnectToken, _pGameServer->_OldConnectToken, sizeof(_pGameServer->_OldConnectToken)))
+		{
+			//	다른경우 로그 남기고 ConnectToken 다름 패킷 전송
+			CPacket * newPacket = CPacket::Alloc();
+			BYTE Result = CLIENT_ERROR;
+			WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+			*newPacket << Type << _AccountNo << Result;
+			SendPacket(newPacket);
+			newPacket->Free();
+			return false;
+		}
 	}
 	return true;
 }
