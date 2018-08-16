@@ -24,21 +24,22 @@ int main()
 	//	}
 	//}
 
-	if (false == Server._pMaster->Connect(Config.MASTER_BIND_IP, Config.MASTER_BIND_PORT, true, LANCLIENT_WORKERTHREAD))
+	if (false == Server.Start(Config.BATTLE_BIND_IP, Config.BATTLE_BIND_PORT, Config.WORKER_THREAD, true, Config.PACKET_CODE, Config.PACKET_KEY1, Config.PACKET_KEY2))
 	{
 		{
-			wprintf(L"[Main :: MasterServer Connect] Error\n");
+			wprintf(L"[Main :: BattleServer Start] Error\n");
 			return 0;
 		}
 	}
 
-	if (false == Server.Start(Config.BATTLE_BIND_IP, Config.BATTLE_BIND_PORT, Config.WORKER_THREAD, true, Config.PACKET_CODE, Config.PACKET_KEY1, Config.PACKET_KEY2))
+	if (false == Server.Start(Config.CHAT_BIND_IP, Config.CHAT_BIND_PORT, Config.WORKER_THREAD, true, Config.PACKET_CODE, Config.PACKET_KEY1, Config.PACKET_KEY2))
 	{
 		{
-			wprintf(L"[Main :: Server Start] Error\n");
+			wprintf(L"[Main :: ChatLanServer Start] Error\n");
 			return 0;
 		}
 	}
+
 	Server.ThreadInit();
 	while (bFlag)
 	{

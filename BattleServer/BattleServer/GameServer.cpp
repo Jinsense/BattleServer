@@ -32,11 +32,19 @@ CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBa
 		_pPlayer[i].SetGame(this);
 	}
 
+	ZeroMemory(&_ChatServerIP, sizeof(_ChatServerIP));
+	_ChatServerPort = NULL;
+
 	ZeroMemory(&_OldConnectToken, sizeof(_OldConnectToken));
 	ZeroMemory(&_CurConnectToken, sizeof(_CurConnectToken));
 	_CreateTokenTick = NULL;
 	NewConnectTokenCreate();
 	memcpy(_OldConnectToken, _CurConnectToken, sizeof(_CurConnectToken));
+
+	_bChatConnect = false;
+
+	_pChat = new CChatLanServer;
+	_pChat->Set(this);
 
 	_pMaster = new CLanMasterClient;
 	_pMaster->Constructor(this);
@@ -376,16 +384,33 @@ void CGameServer::LanMasterCheckThead_Update()
 		{
 			NewConnectTokenCreate();
 			start = now;
-			CPacket * pPacket = CPacket::Alloc();
-			WORD Type = en_PACKET_BAT_MAS_REQ_CONNECT_TOKEN;
-			*pPacket << Type;
-			pPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
-			*pPacket << _Sequence;
-			_pMaster->SendPacket(pPacket);
-			pPacket->Free();
+
+			if (true == _pMaster->IsConnect())
+			{
+				//	마스터 서버에 재발행 알림
+				CPacket * pMasterPacket = CPacket::Alloc();
+				WORD Type = en_PACKET_BAT_MAS_REQ_CONNECT_TOKEN;
+				*pMasterPacket << Type;
+				pMasterPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
+				*pMasterPacket << _Sequence;
+				_pMaster->SendPacket(pMasterPacket);
+				pMasterPacket->Free();
+			}
+
+			if (true == _bChatConnect)
+			{
+				//	채팅서버에 재발행 알림
+				CPacket * pChatPacket = CPacket::Alloc();
+				WORD Type = en_PACKET_CHAT_BAT_REQ_CONNECT_TOKEN;
+				*pChatPacket << Type;
+				pChatPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
+				*pChatPacket << _Sequence;
+				_pChat->SendPacket(_ChatClientID, pChatPacket);
+				pChatPacket->Free();
+			}
 		}
 
-		if (false == _pMaster->IsConnect())
+		if (false == _pMaster->IsConnect() && true == _bChatConnect)
 		{
 			_pMaster->Connect(Config.MASTER_BIND_IP, Config.MASTER_BIND_PORT, true, LANCLIENT_WORKERTHREAD);
 			continue;
@@ -532,7 +557,8 @@ void CGameServer::WaitRoomSizeCheck()
 void CGameServer::WaitRoomCreate()
 {
 	//-----------------------------------------------------------
-	//	방을 생성하고 마스터 서버에 통보
+	//	방을 생성하고 채팅 서버에 통보
+	//	채팅서버에서 응답이 오면 마스터 서버에 통보
 	//-----------------------------------------------------------
 	BATTLEROOM * Room = _BattleRoomPool->Alloc();
 	EntertokenCreate(Room->Entertoken);
@@ -547,13 +573,13 @@ void CGameServer::WaitRoomCreate()
 	_WaitRoomMap.insert(pair<int, BATTLEROOM*>(Room->RoomNo, Room));
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
 	InterlockedIncrement(&_WaitRoomCount);
-
+	
 	CPacket *pPacket = CPacket::Alloc();
-	WORD Type = en_PACKET_BAT_MAS_REQ_CREATED_ROOM;
+	WORD Type = en_PACKET_CHAT_BAT_REQ_CREATED_ROOM;
 	*pPacket << Type << _BattleServerNo << Room->RoomNo << Room->MaxUser;
 	pPacket->PushData((char*)&Room->Entertoken, sizeof(Room->Entertoken));
 	*pPacket << _Sequence;
-	_pMaster->SendPacket(pPacket);
+	_pChat->SendPacket(_ChatClientID, pPacket);
 	pPacket->Free();
 
 	return;
@@ -690,6 +716,13 @@ void CGameServer::PlayRoomDestroyCheck()
 			_BattleRoomPool->Free((*i).second);
 			i = _PlayRoomMap.erase(i);
 			InterlockedDecrement(&_PlayRoomCount);
+
+			//	채팅서버에 해당 방이 파괴됨을 전송
+			CPacket * pPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_CHAT_BAT_REQ_DESTROY_ROOM;
+			*pPacket << _BattleServerNo << (*i).second->RoomNo << _Sequence;
+			_pChat->SendPacket(_ChatClientID, pPacket);
+			pPacket->Free();
 		}
 		else
 			i++;

@@ -14,6 +14,7 @@
 #include "BattleServer.h"
 #include "LanMasterClient.h"
 #include "LanMonitorClient.h"
+#include "LanServer.h"
 
 #pragma comment(lib, "Pdh.lib")
 
@@ -118,6 +119,8 @@ private:
 
 public:
 	CPlayer * _pPlayer;
+	WCHAR	_ChatServerIP[16];
+	WORD	_ChatServerPort;
 
 	std::map<int, BATTLEROOM*> _WaitRoomMap;
 	std::map<int, BATTLEROOM*> _PlayRoomMap;
@@ -133,10 +136,13 @@ public:
 	CLockFreeQueue<CRingBuffer*> _HttpQueue;
 	HANDLE	_hHttpEvent;
 
+	bool	_bChatConnect;
 	char	_OldConnectToken[32];			//	배틀서버 접속 토큰 ( 기존 )
 	char	_CurConnectToken[32];			//	배틀서버 접속 토큰 ( 신규 )
 	__int64 _CreateTokenTick;				//	토큰 신규 발행한 시간
 
+	CChatLanServer * _pChat;
+	unsigned __int64	_ChatClientID;
 	CLanMonitorClient * _pMonitor;
 	CLanMasterClient *	_pMaster;
 

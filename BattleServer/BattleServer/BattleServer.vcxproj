@@ -139,6 +139,7 @@
     <ClCompile Include="GameServer.cpp" />
     <ClCompile Include="LanMasterClient.cpp" />
     <ClCompile Include="LanMonitorClient.cpp" />
+    <ClCompile Include="LanServer.cpp" />
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="BattleServer.cpp" />
@@ -168,6 +169,7 @@
     <ClInclude Include="LanClient.h" />
     <ClInclude Include="LanMasterClient.h" />
     <ClInclude Include="LanMonitorClient.h" />
+    <ClInclude Include="LanServer.h" />
     <ClInclude Include="LockFreeQueue.h" />
     <ClInclude Include="LockFreeStack.h" />
     <ClInclude Include="Log.h" />
