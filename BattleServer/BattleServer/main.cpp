@@ -32,7 +32,7 @@ int main()
 		}
 	}
 
-	if (false == Server.Start(Config.CHAT_BIND_IP, Config.CHAT_BIND_PORT, Config.WORKER_THREAD, true, Config.PACKET_CODE, Config.PACKET_KEY1, Config.PACKET_KEY2))
+	if (false == Server._pChat->ServerStart(Config.CHAT_BIND_IP, Config.CHAT_BIND_PORT, Config.WORKER_THREAD, true, LAN_SERVER_NUM))
 	{
 		{
 			wprintf(L"[Main :: ChatLanServer Start] Error\n");
