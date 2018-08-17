@@ -631,9 +631,9 @@ bool CChatLanServer::OnRecv(LANSESSION *pSession, CPacket *pPacket)
 	*pPacket >> Type;
 
 	//-----------------------------------------------------------
-	// 컨텐츠 처리 - 채팅서버에게 서버 켜짐 알림
+	// 컨텐츠 처리 - 배틀서버에게 서버 켜짐 알림
 	//-----------------------------------------------------------
-	if (en_PACKET_CHAT_BAT_RES_SERVER_ON == Type)
+	if (en_PACKET_CHAT_BAT_REQ_SERVER_ON == Type)
 	{
 		ResChatServerOn(pPacket, pSession);
 	}

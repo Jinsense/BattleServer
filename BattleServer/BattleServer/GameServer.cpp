@@ -713,16 +713,16 @@ void CGameServer::PlayRoomDestroyCheck()
 	{
 		if (0 == (*i).second->RoomPlayer.size())
 		{
-			_BattleRoomPool->Free((*i).second);
-			i = _PlayRoomMap.erase(i);
-			InterlockedDecrement(&_PlayRoomCount);
-
 			//	채팅서버에 해당 방이 파괴됨을 전송
 			CPacket * pPacket = CPacket::Alloc();
 			WORD Type = en_PACKET_CHAT_BAT_REQ_DESTROY_ROOM;
-			*pPacket << _BattleServerNo << (*i).second->RoomNo << _Sequence;
+			*pPacket << Type << _BattleServerNo << (*i).second->RoomNo << _Sequence;
 			_pChat->SendPacket(_ChatClientID, pPacket);
 			pPacket->Free();
+
+			_BattleRoomPool->Free((*i).second);
+			i = _PlayRoomMap.erase(i);
+			InterlockedDecrement(&_PlayRoomCount);
 		}
 		else
 			i++;

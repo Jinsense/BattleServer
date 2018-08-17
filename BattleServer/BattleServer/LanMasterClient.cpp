@@ -47,8 +47,8 @@ void CLanMasterClient::OnEnterJoinServer()
 	*pPacket << BattleServerPort;
 	pPacket->PushData((char*)&_pGameServer->_CurConnectToken, sizeof(_pGameServer->_CurConnectToken));
 	pPacket->PushData((char*)&MasterToken, sizeof(MasterToken));
-	pPacket->PushData((char*)&Config.CHAT_BIND_IP, sizeof(Config.CHAT_BIND_IP));
-	*pPacket << Config.CHAT_BIND_PORT;
+	pPacket->PushData((char*)&_pGameServer->_ChatServerIP, sizeof(_pGameServer->_ChatServerIP));
+	*pPacket << _pGameServer->_ChatServerPort;
 
 	SendPacket(pPacket);
 	pPacket->Free();
