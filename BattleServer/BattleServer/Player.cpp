@@ -163,8 +163,12 @@ void CPlayer::OnGame_Packet(CPacket *pPacket)
 void CPlayer::OnGame_ClientRelease()
 {
 	//	해당 클라이언트의 진정한 접속 종료, 정리, 해제 등등 
-
-
+	_ClientInfo.ClientID = NULL;
+	_RoomNo = NULL;
+	_AccountNo = NULL;
+	ZeroMemory(&_SessionKey, sizeof(_SessionKey));
+	ZeroMemory(&_ConnectToken, sizeof(_ConnectToken));
+	_Version = NULL;
 
 	return;
 }
@@ -291,7 +295,6 @@ void CPlayer::OnHttp_Result_Success(unsigned __int64 ClientID)
 		CPacket *pNewPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
 		BYTE Result = LOGIN_SUCCESS;
-		//	BYTE Result = CLIENT_ERROR;
 
 		*pNewPacket << Type << _AccountNo << Result;
 		SendPacket(pNewPacket);
@@ -432,7 +435,8 @@ void CPlayer::HttpJsonCall()
 	//	ClientID 저장 후 Http 요청
 	pBuffer->Enqueue((char*)&ClientID, sizeof(ClientID));
 
-	_LoginReq = false;
+//	_LoginReq = false;
+	InterlockedCompareExchange(&_LoginReq, false, true);
 	_pGameServer->_HttpQueue.Enqueue(pBuffer);
 	SetEvent(_pGameServer->_hHttpEvent);
 	return;
