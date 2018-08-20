@@ -72,9 +72,9 @@ public:
 	virtual void OnGame_ClientLeave() = 0;
 	virtual void OnGame_Packet(CPacket *pPacket) = 0;
 	virtual void OnGame_ClientRelease() = 0;
-	virtual bool OnHttp_Result_SelectAccount(string temp) = 0;
-	virtual bool OnHttp_Result_SelectContents(string temp) = 0;
-	virtual void OnHttp_Result_Success() = 0;
+	virtual bool OnHttp_Result_SelectAccount(string temp, unsigned __int64 ClientID) = 0;
+	virtual bool OnHttp_Result_SelectContents(string temp, unsigned __int64 ClientID) = 0;
+	virtual void OnHttp_Result_Success(unsigned __int64 ClientID) = 0;
 	virtual void OnRoomLeavePlayer_Auth() = 0;
 	virtual void OnRoomLeavePlayer_Game() = 0;
 

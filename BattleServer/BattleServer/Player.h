@@ -22,9 +22,9 @@ public:
 	void	OnGame_ClientLeave();
 	void	OnGame_Packet(CPacket *pPacket);
 	void	OnGame_ClientRelease();
-	bool	OnHttp_Result_SelectAccount(string temp);
-	bool	OnHttp_Result_SelectContents(string temp);
-	void	OnHttp_Result_Success();
+	bool	OnHttp_Result_SelectAccount(string temp, unsigned __int64 ClientID);
+	bool	OnHttp_Result_SelectContents(string temp, unsigned __int64 ClientID);
+	void	OnHttp_Result_Success(unsigned __int64 ClientID);
 	void	OnRoomLeavePlayer_Auth();
 	void	OnRoomLeavePlayer_Game();
 
@@ -43,8 +43,8 @@ public:
 	//	사용자 함수
 	//-----------------------------------------------------------
 	bool	VersionCheck();
-	bool	ConnectTokenCheck(char * ConnectToken);
-	bool	OverlappLoginCheck();
+	bool	ConnectTokenCheck(char * ConnectToken, INT64 AccountNo);
+	bool	OverlappLoginCheck(INT64 AccountNo);
 	void	HttpJsonCall();
 	bool	AccountnoCheck(INT64 AccountNo);
 	BATTLEROOM * FindWaitRoom(int RoomNo);
@@ -74,6 +74,8 @@ public:
 	int		_Kill;
 	int		_Die;
 	int		_Win;
+	
+	long	_LoginReq;
 
 	CGameServer * _pGameServer;
 };

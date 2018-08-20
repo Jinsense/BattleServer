@@ -470,8 +470,14 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 	int Count = 0;
 	int Index = NULL;
 	INT64 AccountNo = NULL;
+	unsigned __int64 ClientID = NULL;
 	pBuffer->Dequeue((char*)&Index, sizeof(Index));
 	pBuffer->Dequeue((char*)&AccountNo, sizeof(AccountNo));
+	pBuffer->Dequeue((char*)&ClientID, sizeof(ClientID));
+
+	if (0 == ClientID)
+		return;
+
 	//	Set Post Data
 	Json::Value PostData;
 	PostData["accountno"] = AccountNo;
@@ -488,7 +494,7 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 			break;	
 	}	
 	//	Result Check
-	if (false == _pSessionArray[Index]->OnHttp_Result_SelectAccount(temp))
+	if (false == _pSessionArray[Index]->OnHttp_Result_SelectAccount(temp, _pSessionArray[Index]->_ClientInfo.ClientID))
 		return;
 	temp.clear();
 	Count = 0;
@@ -505,11 +511,11 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 			break;
 	}
 	//	Result Check
-	if (false == _pSessionArray[Index]->OnHttp_Result_SelectContents(temp))
+	if (false == _pSessionArray[Index]->OnHttp_Result_SelectContents(temp, _pSessionArray[Index]->_ClientInfo.ClientID))
 		return;
 
 	//	성공 패킷 응답
-	_pSessionArray[Index]->OnHttp_Result_Success();
+	_pSessionArray[Index]->OnHttp_Result_Success(_pSessionArray[Index]->_ClientInfo.ClientID);
 	return;
 }
 

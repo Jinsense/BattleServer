@@ -29,7 +29,7 @@ CBattleServer::CBattleServer(int iMaxSession, int iSend, int iAuth, int iGame) :
 	ZeroMemory(_szListenIP, sizeof(_szListenIP));
 	_iListenPort = NULL;
 	_byCode = NULL;
-	_iClientIDCnt = 0;
+	_iClientIDCnt = 1;
 	_hAcceptThread = NULL;
 	_hAuthThread = NULL;
 	for (auto iCnt = 0; iCnt < WORKER_THREAD_MAX; iCnt++)
@@ -496,9 +496,35 @@ void CBattleServer::ProcAuth_Accept()
 	_AccpetSocketQueue.Dequeue((char*)&pInfo, sizeof(CLIENT_CONNECT_INFO*));
 //	_AccpetSocketQueue.Dequeue(pInfo);
 
-
 	CNetSession* pSession = _pSessionArray[Index];
 	pSession->_iArrayIndex = Index;
+
+	while (0 != pSession->_SendQ.GetUseSize())
+		//			while (0 != _pSessionArray[i]->_SendQ.GetUseCount())
+	{
+		//	애초에 큐에 패킷이 남아있으면 안됨..
+		CPacket *pPacket;
+		pSession->_SendQ.Dequeue((char*)&pPacket, sizeof(CPacket*));
+		//				_pSessionArray[i]->_SendQ.Dequeue(pPacket);
+		pPacket->Free();
+	}
+	while (0 != pSession->_CompleteRecvPacket.GetUseCount())
+	{
+		//	애초에 큐에 패킷이 남아있으면 안됨..
+		CPacket *pPacket;
+		pSession->_CompleteRecvPacket.Dequeue(pPacket);
+		pPacket->Free();
+	}
+	while (0 != pSession->_CompleteSendPacket.GetUseSize())
+		//			while (0 != _pSessionArray[i]->_CompleteSendPacket.GetUseCount())
+	{
+		//	애초에 큐에 패킷이 남아있으면 안됨..
+		CPacket *pPacket;
+		pSession->_CompleteSendPacket.Dequeue((char*)&pPacket, sizeof(CPacket*));
+		//				_pSessionArray[i]->_CompleteSendPacket.Dequeue(pPacket);
+		pPacket->Free();
+	}
+
 	pSession->_Mode = CNetSession::MODE_AUTH;
 	pSession->_AuthToGameFlag = false;
 	pSession->_iSendPacketCnt = NULL;

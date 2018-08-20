@@ -14,6 +14,8 @@ CPlayer::CPlayer()
 	_Die = NULL;
 	_Win = NULL;
 	_pGameServer = nullptr;
+
+	_LoginReq = false;
 }
 
 CPlayer::~CPlayer()
@@ -25,6 +27,17 @@ void CPlayer::OnAuth_ClientJoin()
 {
 	//	해당 플레이어 접속으로 인한 게임상의 데이터 할당 및 준비
 	_RoomNo = NULL;
+	_AccountNo = NULL;
+	ZeroMemory(&_SessionKey, sizeof(_SessionKey));
+	ZeroMemory(&_ConnectToken, sizeof(_ConnectToken));
+	_Version = NULL;
+	ZeroMemory(&_Nickname, sizeof(_Nickname));
+	_Playtime = NULL;
+	_Playcount = NULL;
+	_Kill = NULL;
+	_Die = NULL;
+	_Win = NULL;
+
 	return;
 }
 
@@ -156,7 +169,7 @@ void CPlayer::OnGame_ClientRelease()
 	return;
 }
 
-bool CPlayer::OnHttp_Result_SelectAccount(string temp)
+bool CPlayer::OnHttp_Result_SelectAccount(string temp, unsigned __int64 ClientID)
 {
 	Json::Reader reader;
 	Json::Value result;
@@ -164,82 +177,104 @@ bool CPlayer::OnHttp_Result_SelectAccount(string temp)
 	bool Res = reader.parse(temp, result);
 	if (!Res)
 	{
-		_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
-		CPacket * newPacket = CPacket::Alloc();
-		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-		BYTE Status = CLIENT_ERROR;
-		*newPacket << Type << Status;
-		SendPacket(newPacket);
-//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-		newPacket->Free();
+		if (ClientID == _ClientInfo.ClientID && NULL != _AccountNo)
+		{
+			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
+
+			_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Json Parse Error [AccountNo : %d]"), _AccountNo);
+			CPacket * newPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+			BYTE Result = CLIENT_ERROR;
+			*newPacket << Type << _AccountNo << Result;
+			SendPacket(newPacket);
+			//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+		}
 		return false;
 	}
 
 	int ResNum = result["result"].asInt();
 	if (LOGIN_SUCCESS != ResNum)
 	{
-		BYTE Status = CLIENT_ERROR;
-		CPacket * newPacket = CPacket::Alloc();
-		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-		*newPacket << Type << Status;
-		SendPacket(newPacket);
-//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-		newPacket->Free();
+		if (ClientID == _ClientInfo.ClientID && NULL != _AccountNo)
+		{
+			_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Json Result Error [AccountNo : %d]"), _AccountNo);
+
+			BYTE Result = CLIENT_ERROR;
+			CPacket * newPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+			*newPacket << Type << _AccountNo << Result;
+			SendPacket(newPacket);
+			//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+		}
 		return false;
 	}
 
 	string sessionkey = result["sessionkey"].asCString();
 	if (0 != strncmp(sessionkey.c_str(), _SessionKey, sizeof(_SessionKey)))
 	{
-		//	세션키가 다름 응답 후 끊기
-		CPacket * newPacket = CPacket::Alloc();
-		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-		BYTE Status = SESSIONKEY_ERROR;
-		*newPacket << Type << Status;
-		SendPacket(newPacket);
-//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-		newPacket->Free();
+		if (ClientID == _ClientInfo.ClientID && NULL != _AccountNo)
+		{
+			_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"SessionKey Error [AccountNo : %d]"), _AccountNo);
+			//	세션키가 다름 응답 후 끊기
+			CPacket * newPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+			BYTE Result = SESSIONKEY_ERROR;
+			*newPacket << Type << _AccountNo << Result;
+			SendPacket(newPacket);
+			//		SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+		}
 		return false;
 	}
-
 	//	Nickname 저장 - char로 변환 후 wchar로 저장
 	string Nickname = result["nick"].asCString();
 	char Temp[20] = { 0 , };
 	strcpy_s(Temp, sizeof(Temp), Nickname.c_str());
 	UTF8toUTF16(Temp, _Nickname, sizeof(Temp));
-
 	return true;
 }
 
-bool CPlayer::OnHttp_Result_SelectContents(string temp)
+bool CPlayer::OnHttp_Result_SelectContents(string temp, unsigned __int64 ClientID)
 {
 	Json::Reader reader;
 	Json::Value result;
 	bool Res = reader.parse(temp, result);
 	if (!Res)
 	{
-		_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
-		CPacket * newPacket = CPacket::Alloc();
-		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-		BYTE Status = CLIENT_ERROR;
-		*newPacket << Type << Status;
-		SendPacket(newPacket);
-		//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-		newPacket->Free();
+		if (ClientID == _ClientInfo.ClientID && NULL != _AccountNo)
+		{
+			_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM, const_cast<WCHAR*>(L"Failed to parse Json [AccountNo : %d]"), _AccountNo);
+
+			_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Json Result Error [AccountNo : %d]"), _AccountNo);
+			CPacket * newPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+			BYTE Result = CLIENT_ERROR;
+			*newPacket << Type << _AccountNo << Result;
+			SendPacket(newPacket);
+			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+		}
 		return false;
 	}
 	int ResNum = result["result"].asInt();
 	if (LOGIN_SUCCESS != ResNum)
 	{
-		BYTE Status = CLIENT_ERROR;
-		CPacket * newPacket = CPacket::Alloc();
-		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-		*newPacket << Type << Status;
-		SendPacket(newPacket);
-		//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
-		newPacket->Free();
+		if (ClientID == _ClientInfo.ClientID && NULL != _AccountNo)
+		{
+			_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Json Result Error [AccountNo : %d]"), _AccountNo);
+			BYTE Result = CLIENT_ERROR;
+			CPacket * newPacket = CPacket::Alloc();
+			WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+			*newPacket << Type << _AccountNo << Result;
+			SendPacket(newPacket);
+			//			SendPacketAndDisConnect(pPlayer->_ClientID, newPacket);
+			newPacket->Free();
+		}
 		return false;
 	}
+
 	_Playtime = result["play"].asInt();
 	_Playcount = result["playercount"].asInt();
 	_Kill = result["kill"].asInt();
@@ -248,16 +283,20 @@ bool CPlayer::OnHttp_Result_SelectContents(string temp)
 	return true;
 }
 
-void CPlayer::OnHttp_Result_Success()
+void CPlayer::OnHttp_Result_Success(unsigned __int64 ClientID)
 {
-	CPacket *pNewPacket = CPacket::Alloc();
-	WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-	BYTE Result = LOGIN_SUCCESS;
-//	BYTE Result = CLIENT_ERROR;
+	if (ClientID == _ClientInfo.ClientID && ClientID != NULL && _AccountNo != NULL && false == InterlockedCompareExchange(&_LoginReq, true, false))
+	{
+		_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Login Success [AccountNo : %d, ClientID : %d, CurID : %d]"), _AccountNo, ClientID, _ClientInfo.ClientID);
+		CPacket *pNewPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		BYTE Result = LOGIN_SUCCESS;
+		//	BYTE Result = CLIENT_ERROR;
 
-	*pNewPacket << Type << _AccountNo << Result;
-	SendPacket(pNewPacket);
-	pNewPacket->Free();
+		*pNewPacket << Type << _AccountNo << Result;
+		SendPacket(pNewPacket);
+		pNewPacket->Free();
+	}
 	return;
 }
 
@@ -271,10 +310,13 @@ void CPlayer::Auth_ReqLogin(CPacket *pPacket)
 	if (false == VersionCheck())
 		return;
 	
-	if (false == ConnectTokenCheck(_ConnectToken))
+	if (false == ConnectTokenCheck(_ConnectToken, _AccountNo))
 		return;
 
-	if (false == OverlappLoginCheck())
+	if (false == AccountnoCheck(_AccountNo))
+		return;
+
+	if (false == OverlappLoginCheck(_AccountNo))
 		return;
 	HttpJsonCall();
 	return;
@@ -316,6 +358,8 @@ bool CPlayer::VersionCheck()
 		//	버전 코드가 다를 경우 로그를 남기고 버전오류 응답을 보낸 후 끊는다.
 		_pLog->Log(const_cast<WCHAR*>(L"Error"), LOG_SYSTEM,
 			const_cast<WCHAR*>(L"Ver_Code Not Same [AccountNo : %d]"), _AccountNo);
+
+		_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Version Error [AccountNo : %d]"), _AccountNo);
 		CPacket * newPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
 		BYTE Result = VER_ERROR;
@@ -327,36 +371,41 @@ bool CPlayer::VersionCheck()
 	return true;
 }
 
-bool CPlayer::ConnectTokenCheck(char * ConnectToken)
+bool CPlayer::ConnectTokenCheck(char * ConnectToken, INT64 AccountNo)
 {
 	if (0 != strncmp(ConnectToken, _pGameServer->_CurConnectToken, sizeof(_pGameServer->_CurConnectToken)))
 	{
 		if (0 != strncmp(ConnectToken, _pGameServer->_OldConnectToken, sizeof(_pGameServer->_OldConnectToken)))
 		{
-			//	다른경우 로그 남기고 ConnectToken 다름 패킷 전송
-			CPacket * newPacket = CPacket::Alloc();
-			BYTE Result = CLIENT_ERROR;
-			WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-			*newPacket << Type << _AccountNo << Result;
-			SendPacket(newPacket);
-			newPacket->Free();
+			if (AccountNo == _AccountNo && NULL != _AccountNo)
+			{
+				_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Connect Error [AccountNo : %d]"), _AccountNo);
+				//	다른경우 로그 남기고 ConnectToken 다름 패킷 전송
+				CPacket * newPacket = CPacket::Alloc();
+				BYTE Result = CLIENT_ERROR;
+				WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+				*newPacket << Type << _AccountNo << Result;
+				SendPacket(newPacket);
+				newPacket->Free();
+			}
 			return false;
 		}
 	}
 	return true;
 }
 
-bool CPlayer::OverlappLoginCheck()
+bool CPlayer::OverlappLoginCheck(INT64 AccountNo)
 {
 	//	중복 로그인 검사
-	if (true == Find_AccountNo(_AccountNo))
+	if (true == Find_AccountNo(AccountNo) && _AccountNo == AccountNo && NULL != _AccountNo)
 	{
+		_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Overlapped Login[AccountNo : %d]"), _AccountNo);
 		//	중복로그인 패킷 전송
 		//	기존 로그인 유저는 함수 내부에서 LogoutFlag 변경 처리
 		CPacket *newPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
 		BYTE Result = OVERLAPP_LOGIN;
-		*newPacket << Type << _AccountNo << Result;
+		*newPacket << Type << AccountNo << Result;
 		SendPacket(newPacket);
 		newPacket->Free();
 		return false;
@@ -377,6 +426,10 @@ void CPlayer::HttpJsonCall()
 	pBuffer->Enqueue((char*)&Type, sizeof(Type));
 	pBuffer->Enqueue((char*)&_iArrayIndex, sizeof(_iArrayIndex));
 	pBuffer->Enqueue((char*)&_AccountNo, sizeof(_AccountNo));
+	//	ClientID 저장 후 Http 요청
+	pBuffer->Enqueue((char*)&_ClientInfo.ClientID, sizeof(_ClientInfo.ClientID));
+
+	_LoginReq = false;
 	_pGameServer->_HttpQueue.Enqueue(pBuffer);
 	SetEvent(_pGameServer->_hHttpEvent);
 	return;
