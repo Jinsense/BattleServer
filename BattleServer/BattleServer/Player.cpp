@@ -420,14 +420,17 @@ void CPlayer::HttpJsonCall()
 	//-------------------------------------------------------------
 	//	RingBuffer-메모리풀 생성하여 HttpQueue에 저장한 후 이벤트 호출
 	WORD Type = SELECT;
+	int Index = _iArrayIndex;
+	INT64 AccountNo = _AccountNo;
+	unsigned __int64 ClientID = _ClientInfo.ClientID;
 	CRingBuffer *pBuffer = _pGameServer->_HttpPool->Alloc();
 //	pBuffer->Initialize(500);
 	pBuffer->Clear();
 	pBuffer->Enqueue((char*)&Type, sizeof(Type));
-	pBuffer->Enqueue((char*)&_iArrayIndex, sizeof(_iArrayIndex));
-	pBuffer->Enqueue((char*)&_AccountNo, sizeof(_AccountNo));
+	pBuffer->Enqueue((char*)&Index, sizeof(Index));
+	pBuffer->Enqueue((char*)&AccountNo, sizeof(AccountNo));
 	//	ClientID 저장 후 Http 요청
-	pBuffer->Enqueue((char*)&_ClientInfo.ClientID, sizeof(_ClientInfo.ClientID));
+	pBuffer->Enqueue((char*)&ClientID, sizeof(ClientID));
 
 	_LoginReq = false;
 	_pGameServer->_HttpQueue.Enqueue(pBuffer);

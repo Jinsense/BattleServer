@@ -494,7 +494,7 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 			break;	
 	}	
 	//	Result Check
-	if (false == _pSessionArray[Index]->OnHttp_Result_SelectAccount(temp, _pSessionArray[Index]->_ClientInfo.ClientID))
+	if (false == _pSessionArray[Index]->OnHttp_Result_SelectAccount(temp, ClientID))
 		return;
 	temp.clear();
 	Count = 0;
@@ -511,11 +511,11 @@ void CGameServer::HttpSend_Select(CRingBuffer * pBuffer)
 			break;
 	}
 	//	Result Check
-	if (false == _pSessionArray[Index]->OnHttp_Result_SelectContents(temp, _pSessionArray[Index]->_ClientInfo.ClientID))
+	if (false == _pSessionArray[Index]->OnHttp_Result_SelectContents(temp, ClientID))
 		return;
 
 	//	성공 패킷 응답
-	_pSessionArray[Index]->OnHttp_Result_Success(_pSessionArray[Index]->_ClientInfo.ClientID);
+	_pSessionArray[Index]->OnHttp_Result_Success(ClientID);
 	return;
 }
 
