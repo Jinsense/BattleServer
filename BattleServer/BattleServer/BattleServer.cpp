@@ -500,30 +500,24 @@ void CBattleServer::ProcAuth_Accept()
 	pSession->_iArrayIndex = Index;
 
 	while (0 != pSession->_SendQ.GetUseSize())
-		//			while (0 != _pSessionArray[i]->_SendQ.GetUseCount())
 	{
-		//	애초에 큐에 패킷이 남아있으면 안됨..
 		CPacket *pPacket;
 		pSession->_SendQ.Dequeue((char*)&pPacket, sizeof(CPacket*));
-		//				_pSessionArray[i]->_SendQ.Dequeue(pPacket);
 		pPacket->Free();
 	}
 	while (0 != pSession->_CompleteRecvPacket.GetUseCount())
 	{
-		//	애초에 큐에 패킷이 남아있으면 안됨..
 		CPacket *pPacket;
 		pSession->_CompleteRecvPacket.Dequeue(pPacket);
 		pPacket->Free();
 	}
 	while (0 != pSession->_CompleteSendPacket.GetUseSize())
-		//			while (0 != _pSessionArray[i]->_CompleteSendPacket.GetUseCount())
 	{
-		//	애초에 큐에 패킷이 남아있으면 안됨..
 		CPacket *pPacket;
 		pSession->_CompleteSendPacket.Dequeue((char*)&pPacket, sizeof(CPacket*));
-		//				_pSessionArray[i]->_CompleteSendPacket.Dequeue(pPacket);
 		pPacket->Free();
 	}
+	pSession->OnAuth_ClientJoin();
 
 	pSession->_Mode = CNetSession::MODE_AUTH;
 	pSession->_AuthToGameFlag = false;
@@ -546,7 +540,7 @@ void CBattleServer::ProcAuth_Accept()
 	_pMemoryPool_ConnectInfo->Free(pInfo);
 
 	CreateIOCP_Socket(pSession->_ClientInfo.Sock, Index);
-	pSession->OnAuth_ClientJoin();
+//	pSession->OnAuth_ClientJoin();
 	StartRecvPost(Index);
 	return;
 }

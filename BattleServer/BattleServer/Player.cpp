@@ -37,7 +37,7 @@ void CPlayer::OnAuth_ClientJoin()
 	_Kill = NULL;
 	_Die = NULL;
 	_Win = NULL;
-
+	_ClientInfo.ClientID = NULL;
 	return;
 }
 
