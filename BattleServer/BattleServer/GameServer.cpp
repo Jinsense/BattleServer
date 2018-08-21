@@ -11,6 +11,7 @@ CGameServer::CGameServer()
 CGameServer::CGameServer(int iMaxSession, int iSend, int iAuth, int iGame) : CBattleServer(iMaxSession, iSend, iAuth, iGame)
 {
 	srand(time(NULL));
+	InitializeSRWLock(&_HttpReq_lock);
 	InitializeSRWLock(&_WaitRoom_lock);
 	InitializeSRWLock(&_PlayRoom_lock);
 	InitializeSRWLock(&_ClosedRoom_lock);
@@ -137,6 +138,24 @@ void CGameServer::OnError(int iErrorCode, WCHAR *szError)
 	return;
 }
 
+bool CGameServer::OnHttpReqRemove(INT64 AccountNo)
+{
+	bool Find = false;
+	//	맵에서 해당 AccountNo가 있을 경우 삭제
+	AcquireSRWLockExclusive(&_HttpReq_lock);
+	if (_HttpReqMap.find(AccountNo) == _HttpReqMap.end()) {
+		// not found
+		Find = false;
+	}
+	else {
+		// found
+		_HttpReqMap.erase(AccountNo);
+		Find = true;
+	}
+	ReleaseSRWLockExclusive(&_HttpReq_lock);
+	return Find;
+}
+
 bool CGameServer::MonitorOnOff()
 {
 	if (_bMonitor == true)
@@ -201,7 +220,8 @@ bool CGameServer::MonitorThread_update()
 			wprintf(L"	BattleRoomPool UseCount	:	%d%\n", _BattleRoomPool->GetUseCount());
 			wprintf(L"	RoomPlayerPool UseCount	:	%d%\n", _RoomPlayerPool->GetUseCount());
 			wprintf(L"	HttpPool UseCount	:	%d%\n", _HttpPool->GetUseCount());
-			wprintf(L"	InfoPool UseCount	:	%d%\n\n", ConnectInfo_UseCount());
+			wprintf(L"	InfoPool UseCount	:	%d%\n", ConnectInfo_UseCount());
+			wprintf(L"	HttpReqMap Size		:	%d%\n\n", _HttpReqMap.size());
 			
 		}
 		_Monitor_AcceptSocket = 0;

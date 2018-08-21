@@ -77,6 +77,7 @@ public:
 	virtual void OnHttp_Result_Success(unsigned __int64 ClientID) = 0;
 	virtual void OnRoomLeavePlayer_Auth() = 0;
 	virtual void OnRoomLeavePlayer_Game() = 0;
+	virtual void OnHttpSendCheck() = 0;
 
 	void	Init();
 	void	Set(CBattleServer *pBattleServer);
@@ -103,7 +104,7 @@ public:
 	OVERLAPPED	_RecvOver;
 	CRingBuffer	_RecvQ;
 	CRingBuffer _SendQ;
-//	CLockFreeQueue<CPacket*>	_SendQ;
+	CRingBuffer _HttpSendQ;
 	CLockFreeQueue<CPacket*>	_CompleteRecvPacket;
 	CRingBuffer _CompleteSendPacket;
 //	CLockFreeQueue<CPacket*>	_CompleteSendPacket;

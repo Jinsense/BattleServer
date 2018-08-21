@@ -27,6 +27,7 @@ public:
 	void	OnHttp_Result_Success(unsigned __int64 ClientID);
 	void	OnRoomLeavePlayer_Auth();
 	void	OnRoomLeavePlayer_Game();
+	void	OnHttpSendCheck();
 
 	//-----------------------------------------------------------
 	//	패킷처리 함수 - AuthPacket

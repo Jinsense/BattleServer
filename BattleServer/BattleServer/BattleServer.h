@@ -51,6 +51,8 @@ public:
 
 	bool SessionAcquireLock(int Index);
 	bool SessionAcquireFree(int Index);
+
+	virtual bool OnHttpReqRemove(INT64 AccountNo) = 0;
 private:
 	void Error(int ErrorCode, WCHAR *szFormatStr, ...);
 	void StartRecvPost(int Index);

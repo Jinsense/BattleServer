@@ -10,6 +10,7 @@ CNetSession::CNetSession() : _RecvQ(BUF), _SendQ(BUF), _CompleteSendPacket(BUF)
 	_RoomNo = NULL;
 	_RecvQ.Clear();
 	_SendQ.Clear();
+	_HttpSendQ.Clear();
 	_iSendPacketCnt = NULL;
 	_iSendPacketSize = NULL;
 	_SendFlag = false;

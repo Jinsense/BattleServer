@@ -668,6 +668,8 @@ void CBattleServer::ProcGame_Release()
 			_AccountNoMap.erase(pSession->_AccountNo);
 			ReleaseSRWLockExclusive(&_AccountNoMap_srwlock);
 
+			OnHttpReqRemove(pSession->_AccountNo);
+
 			pSession->OnGame_ClientRelease();
 			pSession->_Mode = CNetSession::MODE_NONE;
 			pSession->_iArrayIndex = NULL;
@@ -678,28 +680,28 @@ void CBattleServer::ProcGame_Release()
 			pSession->_AuthToGameFlag = false;
 			
 			while (0 != pSession->_SendQ.GetUseSize())
-//			while (0 != _pSessionArray[i]->_SendQ.GetUseCount())
 			{
-				//	애초에 큐에 패킷이 남아있으면 안됨..
 				CPacket *pPacket;
 				pSession->_SendQ.Dequeue((char*)&pPacket, sizeof(CPacket*));
-//				_pSessionArray[i]->_SendQ.Dequeue(pPacket);
 				pPacket->Free();
 			}
 			while (0 != pSession->_CompleteRecvPacket.GetUseCount())
 			{
-				//	애초에 큐에 패킷이 남아있으면 안됨..
 				CPacket *pPacket;
 				pSession->_CompleteRecvPacket.Dequeue(pPacket);
 				pPacket->Free();
 			}
 			while (0 != pSession->_CompleteSendPacket.GetUseSize())
-//			while (0 != _pSessionArray[i]->_CompleteSendPacket.GetUseCount())
-			{
-				//	애초에 큐에 패킷이 남아있으면 안됨..
+			{		
 				CPacket *pPacket;
 				pSession->_CompleteSendPacket.Dequeue((char*)&pPacket, sizeof(CPacket*));
-//				_pSessionArray[i]->_CompleteSendPacket.Dequeue(pPacket);
+				pPacket->Free();
+			}
+
+			while (0 != pSession->_HttpSendQ.GetUseSize())
+			{
+				CPacket *pPacket;
+				pSession->_HttpSendQ.Dequeue((char*)&pPacket, sizeof(CPacket*));
 				pPacket->Free();
 			}
 
@@ -779,8 +781,10 @@ bool CBattleServer::AuthThread_update()
 					pSession->OnAuth_Packet(pPacket);
 					pPacket->Free();
 //					Count++;
+
 				}
 			}
+			pSession->OnHttpSendCheck();
 		}
 		OnAuth_Update();		
 		ProcAuth_LogoutInAuth();

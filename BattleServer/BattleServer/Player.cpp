@@ -289,16 +289,19 @@ bool CPlayer::OnHttp_Result_SelectContents(string temp, unsigned __int64 ClientI
 
 void CPlayer::OnHttp_Result_Success(unsigned __int64 ClientID)
 {
-	if (ClientID == _ClientInfo.ClientID && ClientID != NULL && _AccountNo != NULL && false == InterlockedCompareExchange(&_LoginReq, true, false))
+	if (ClientID == _ClientInfo.ClientID && ClientID != NULL && _AccountNo != NULL && false == InterlockedCompareExchange(&_LoginReq, true, false) && true == _pGameServer->OnHttpReqRemove(_AccountNo))
 	{
-		_pLog->Log(const_cast<WCHAR*>(L"RES_LOGIN"), LOG_SYSTEM, const_cast<WCHAR*>(L"Login Success [AccountNo : %d, ClientID : %d, CurID : %d]"), _AccountNo, ClientID, _ClientInfo.ClientID);
 		CPacket *pNewPacket = CPacket::Alloc();
 		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
 		BYTE Result = LOGIN_SUCCESS;
 
 		*pNewPacket << Type << _AccountNo << Result;
-		SendPacket(pNewPacket);
-		pNewPacket->Free();
+		if (ClientID == _ClientInfo.ClientID)
+		{
+			_HttpSendQ.Enqueue((char*)&pNewPacket, sizeof(pNewPacket));
+		}
+		else
+			pNewPacket->Free();
 	}
 	return;
 }
@@ -421,11 +424,27 @@ void CPlayer::HttpJsonCall()
 	//-------------------------------------------------------------
 	//	JSON 데이터 - select 요청
 	//-------------------------------------------------------------
-	//	RingBuffer-메모리풀 생성하여 HttpQueue에 저장한 후 이벤트 호출
 	WORD Type = SELECT;
 	int Index = _iArrayIndex;
 	INT64 AccountNo = _AccountNo;
 	unsigned __int64 ClientID = _ClientInfo.ClientID;
+	//	HttpReqMap에서 로그인 요청 상태인지 확인
+	bool Find = false;
+	AcquireSRWLockExclusive(&_pGameServer->_HttpReq_lock);
+	if (_pGameServer->_HttpReqMap.find(AccountNo) == _pGameServer->_HttpReqMap.end()) {
+		// not found
+		_pGameServer->_HttpReqMap.insert(make_pair(AccountNo, AccountNo));
+	}
+	else {
+		// found
+		Find = true;
+	}
+	ReleaseSRWLockExclusive(&_pGameServer->_HttpReq_lock);
+
+	if (true == Find)
+		return;
+
+	//	RingBuffer-메모리풀 생성하여 HttpQueue에 저장한 후 이벤트 호출
 	CRingBuffer *pBuffer = _pGameServer->_HttpPool->Alloc();
 //	pBuffer->Initialize(500);
 	pBuffer->Clear();
@@ -631,6 +650,18 @@ void CPlayer::RoomPlayerReadyCheck(BATTLEROOM * Room)
 	_pGameServer->_pMaster->SendPacket(CloseRoomPacket);
 	CloseRoomPacket->Free();
 
+	return;
+}
+
+void CPlayer::OnHttpSendCheck()
+{
+	if (0 != _HttpSendQ.GetUseSize())
+	{
+		CPacket * pPacket = nullptr;
+		_HttpSendQ.Dequeue((char*)&pPacket, sizeof(pPacket));
+		SendPacket(pPacket);
+		pPacket->Free();
+	}
 	return;
 }
 

@@ -34,6 +34,7 @@ public:
 	void	OnAuth_Update();
 	void	OnGame_Update();
 	void	OnError(int iErrorCode, WCHAR *szError);
+	bool	OnHttpReqRemove(INT64 AccountNo);
 
 	//-----------------------------------------------------------
 	//	모니터링 관련 스레드 / 함수
@@ -122,10 +123,12 @@ public:
 	WCHAR	_ChatServerIP[16];
 	WORD	_ChatServerPort;
 
+	std::map<INT64, INT64> _HttpReqMap;
 	std::map<int, BATTLEROOM*> _WaitRoomMap;
 	std::map<int, BATTLEROOM*> _PlayRoomMap;
 	std::map<int, BATTLEROOM*> _TempMap;
 	std::list<int> _ClosedRoomlist;
+	SRWLOCK		_HttpReq_lock;
 	SRWLOCK		_WaitRoom_lock;
 	SRWLOCK		_PlayRoom_lock;
 	SRWLOCK		_ClosedRoom_lock;
