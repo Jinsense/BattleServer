@@ -663,6 +663,11 @@ void CBattleServer::ProcGame_Release()
 		CNetSession *pSession = _pSessionArray[i];
 		if (CNetSession::MODE_WAIT_LOGOUT == pSession->_Mode)
 		{
+			//	AccountNoMap에서 삭제
+			AcquireSRWLockExclusive(&_AccountNoMap_srwlock);
+			_AccountNoMap.erase(pSession->_AccountNo);
+			ReleaseSRWLockExclusive(&_AccountNoMap_srwlock);
+
 			pSession->OnGame_ClientRelease();
 			pSession->_Mode = CNetSession::MODE_NONE;
 			pSession->_iArrayIndex = NULL;
@@ -697,11 +702,6 @@ void CBattleServer::ProcGame_Release()
 //				_pSessionArray[i]->_CompleteSendPacket.Dequeue(pPacket);
 				pPacket->Free();
 			}
-
-			//	AccountNoMap에서 삭제
-			AcquireSRWLockExclusive(&_AccountNoMap_srwlock);
-			_AccountNoMap.erase(pSession->_AccountNo);
-			ReleaseSRWLockExclusive(&_AccountNoMap_srwlock);
 
 			pSession->_ClientInfo.ClientID = NULL;
 			pSession->_ClientInfo.Port = NULL;
