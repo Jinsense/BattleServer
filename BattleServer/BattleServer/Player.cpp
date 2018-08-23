@@ -16,6 +16,7 @@ CPlayer::CPlayer()
 	_pGameServer = nullptr;
 
 	_LoginReq = false;
+	_LoginSuccess = false;
 }
 
 CPlayer::~CPlayer()
@@ -169,7 +170,7 @@ void CPlayer::OnGame_ClientRelease()
 	ZeroMemory(&_SessionKey, sizeof(_SessionKey));
 	ZeroMemory(&_ConnectToken, sizeof(_ConnectToken));
 	_Version = NULL;
-
+	InterlockedCompareExchange(&_LoginSuccess, false, true);
 	return;
 }
 
@@ -291,17 +292,7 @@ void CPlayer::OnHttp_Result_Success(unsigned __int64 ClientID)
 {
 	if (ClientID == _ClientInfo.ClientID && ClientID != NULL && _AccountNo != NULL && false == InterlockedCompareExchange(&_LoginReq, true, false) && true == _pGameServer->OnHttpReqRemove(_AccountNo))
 	{
-		CPacket *pNewPacket = CPacket::Alloc();
-		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
-		BYTE Result = LOGIN_SUCCESS;
-
-		*pNewPacket << Type << _AccountNo << Result;
-		if (ClientID == _ClientInfo.ClientID)
-		{
-			_HttpSendQ.Enqueue((char*)&pNewPacket, sizeof(pNewPacket));
-		}
-		else
-			pNewPacket->Free();
+		InterlockedCompareExchange(&_LoginSuccess, true, false);
 	}
 	return;
 }
@@ -655,12 +646,15 @@ void CPlayer::RoomPlayerReadyCheck(BATTLEROOM * Room)
 
 void CPlayer::OnHttpSendCheck()
 {
-	if (0 != _HttpSendQ.GetUseSize())
+	if (true == InterlockedCompareExchange(&_LoginSuccess, false, true))
 	{
-		CPacket * pPacket = nullptr;
-		_HttpSendQ.Dequeue((char*)&pPacket, sizeof(pPacket));
-		SendPacket(pPacket);
-		pPacket->Free();
+		CPacket *pNewPacket = CPacket::Alloc();
+		WORD Type = en_PACKET_CS_GAME_RES_LOGIN;
+		BYTE Result = LOGIN_SUCCESS;
+
+		*pNewPacket << Type << _AccountNo << Result;
+		SendPacket(pNewPacket);
+		pNewPacket->Free();
 	}
 	return;
 }

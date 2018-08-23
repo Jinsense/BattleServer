@@ -698,13 +698,6 @@ void CBattleServer::ProcGame_Release()
 				pPacket->Free();
 			}
 
-			while (0 != pSession->_HttpSendQ.GetUseSize())
-			{
-				CPacket *pPacket;
-				pSession->_HttpSendQ.Dequeue((char*)&pPacket, sizeof(CPacket*));
-				pPacket->Free();
-			}
-
 			pSession->_ClientInfo.ClientID = NULL;
 			pSession->_ClientInfo.Port = NULL;
 			closesocket(pSession->_ClientInfo.Sock);

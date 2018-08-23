@@ -77,6 +77,7 @@ public:
 	int		_Win;
 	
 	long	_LoginReq;
+	long	_LoginSuccess;
 
 	CGameServer * _pGameServer;
 };

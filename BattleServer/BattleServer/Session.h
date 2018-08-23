@@ -104,7 +104,6 @@ public:
 	OVERLAPPED	_RecvOver;
 	CRingBuffer	_RecvQ;
 	CRingBuffer _SendQ;
-	CRingBuffer _HttpSendQ;
 	CLockFreeQueue<CPacket*>	_CompleteRecvPacket;
 	CRingBuffer _CompleteSendPacket;
 //	CLockFreeQueue<CPacket*>	_CompleteSendPacket;
