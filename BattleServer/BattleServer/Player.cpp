@@ -669,6 +669,8 @@ void CPlayer::OnRoomLeavePlayer_Auth()
 	{
 		if (false == (*iter).second->PlayReady)
 		{
+			_pLog->Log(const_cast<WCHAR*>(L"LeaveRoom"), LOG_SYSTEM, const_cast<WCHAR*>(L"[RoomNo : %d] AccountNo : %d"), _RoomNo, _AccountNo);
+
 			//	마스터 서버로 배틀 서버의 대기방에서 유저가 나감 패킷 전송
 			CPacket *pPacket = CPacket::Alloc();
 			WORD Type = en_PACKET_BAT_MAS_REQ_LEFT_USER;
