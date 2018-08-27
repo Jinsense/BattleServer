@@ -714,14 +714,16 @@ void CGameServer::PlayRoomGameEndCheck()
 	//-----------------------------------------------------------
 	//	게임이 끝났으나 유저가 나가지 않는 경우 강제로 끊음
 	//-----------------------------------------------------------
+	std::map<int, BATTLEROOM*>::iterator iter;
 	AcquireSRWLockExclusive(&_PlayRoom_lock);
-	for (auto i = _PlayRoomMap.begin(); i != _PlayRoomMap.end(); i++)
+	for (iter = _PlayRoomMap.begin(); iter != _PlayRoomMap.end(); iter++)
 	{
-		if (true == (*i).second->GameEnd)
+		if (true == (*iter).second->GameEnd)
 		{
-			for (auto j = (*i).second->RoomPlayer.begin(); j != (*i).second->RoomPlayer.end(); j++)
+			std::list<RoomPlayerInfo*>::iterator Room_iter;
+			for (Room_iter = (*iter).second->RoomPlayer.begin(); Room_iter != (*iter).second->RoomPlayer.end(); Room_iter++)
 			{
-				_pSessionArray[(*j)->Index]->Disconnect();
+				_pSessionArray[(*Room_iter)->Index]->Disconnect();
 //				j = (*i).second->RoomPlayer.erase(j);
 			}
 		}
@@ -734,24 +736,25 @@ void CGameServer::PlayRoomDestroyCheck()
 	//-----------------------------------------------------------
 	//	방에 유저가 없을 경우 방을 파괴 
 	//-----------------------------------------------------------
+	std::map<int, BATTLEROOM*>::iterator iter;
 	AcquireSRWLockExclusive(&_PlayRoom_lock);
-	for (auto i = _PlayRoomMap.begin(); i != _PlayRoomMap.end();)
+	for (iter = _PlayRoomMap.begin(); iter != _PlayRoomMap.end();)
 	{
-		if (0 == (*i).second->RoomPlayer.size())
+		if (0 == (*iter).second->RoomPlayer.size())
 		{
 			//	채팅서버에 해당 방이 파괴됨을 전송
 			CPacket * pPacket = CPacket::Alloc();
 			WORD Type = en_PACKET_CHAT_BAT_REQ_DESTROY_ROOM;
-			*pPacket << Type << _BattleServerNo << (*i).second->RoomNo << _Sequence;
+			*pPacket << Type << _BattleServerNo << (*iter).second->RoomNo << _Sequence;
 			_pChat->SendPacket(_ChatClientID, pPacket);
 			pPacket->Free();
 
-			_BattleRoomPool->Free((*i).second);
-			i = _PlayRoomMap.erase(i);
+			_BattleRoomPool->Free((*iter).second);
+			iter = _PlayRoomMap.erase(iter);
 			InterlockedDecrement(&_PlayRoomCount);
 		}
 		else
-			i++;
+			iter++;
 			
 	}
 	ReleaseSRWLockExclusive(&_PlayRoom_lock);
