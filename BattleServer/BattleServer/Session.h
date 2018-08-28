@@ -120,7 +120,7 @@ public:
 	CSystemLog	*_pLog;
 	CBattleServer *_pBattleServer;
 
-	UINT64	_HeartBeat;
+	INT64	_HeartBeat;
 };
 
 #endif _BATTLESERVER_SERVER_SESSION_H_

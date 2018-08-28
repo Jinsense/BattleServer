@@ -677,6 +677,11 @@ void CGameServer::WaitRoomGameReadyCheck()
 	{
 		if (true == (*iter).second->PlayReady && now - (*iter).second->ReadyCount > (Config.BATTLEROOM_READYSEC * 1000))
 		{
+			AcquireSRWLockExclusive(&_PlayRoom_lock);
+			_PlayRoomMap.insert(*iter);
+			ReleaseSRWLockExclusive(&_PlayRoom_lock);
+			InterlockedIncrement(&_PlayRoomCount);
+
 			_TempMap.insert(*iter);
 			iter = _WaitRoomMap.erase(iter);
 			InterlockedDecrement(&_CountDownRoomCount);
@@ -686,11 +691,14 @@ void CGameServer::WaitRoomGameReadyCheck()
 	}
 	ReleaseSRWLockExclusive(&_WaitRoom_lock);
 
-//	TempMap의 유저들에게 패킷을 전송 후 PlayMap에 추가
+//	TempMap의 유저들에게 패킷을 전송 추가
 	for (iter = _TempMap.begin(); iter != _TempMap.end();)
 	{
 		WORD Type = en_PACKET_CS_GAME_RES_PLAY_START;
 		
+		/*AcquireSRWLockExclusive(&_PlayRoom_lock);
+		_PlayRoomMap.insert(*iter);
+		ReleaseSRWLockExclusive(&_PlayRoom_lock);*/
 		for (auto i = (*iter).second->RoomPlayer.begin(); i != (*iter).second->RoomPlayer.end(); i++)
 		{
 			CPacket * pPacket = CPacket::Alloc();
@@ -699,13 +707,10 @@ void CGameServer::WaitRoomGameReadyCheck()
 			_pSessionArray[(*i)->Index]->SendPacket(pPacket);
 			pPacket->Free();
 		}
-		AcquireSRWLockExclusive(&_PlayRoom_lock);
-		_PlayRoomMap.insert(*iter);
-		ReleaseSRWLockExclusive(&_PlayRoom_lock);
-		InterlockedIncrement(&_PlayRoomCount);
+//		InterlockedIncrement(&_PlayRoomCount);
 		iter = _TempMap.erase(iter);
 	}
-
+//	ReleaseSRWLockExclusive(&_WaitRoom_lock);
 	
 	return;
 }
@@ -717,7 +722,7 @@ void CGameServer::PlayRoomGameEnd()
 	AcquireSRWLockExclusive(&_PlayRoom_lock);
 	for (iter = _PlayRoomMap.begin(); iter != _PlayRoomMap.end(); iter++)
 	{
-		if (now - (*iter).second->ReadyCount > 15000)
+		if (now - (*iter).second->ReadyCount > 60000)
 		{
 			(*iter).second->GameEnd = true;
 		}
@@ -740,8 +745,11 @@ void CGameServer::PlayRoomGameEndCheck()
 			std::list<RoomPlayerInfo*>::iterator Room_iter;
 			for (Room_iter = (*iter).second->RoomPlayer.begin(); Room_iter != (*iter).second->RoomPlayer.end(); Room_iter++)
 			{
+				_pLog->Log(const_cast<WCHAR*>(L"GameEndCheck"), LOG_SYSTEM, const_cast<WCHAR*>(L"[RoomNo : %d] AccountNo : %d"), (*iter).second->RoomNo, (*Room_iter)->AccountNo);
+
 				_pSessionArray[(*Room_iter)->Index]->Disconnect();
-//				j = (*i).second->RoomPlayer.erase(j);
+				_RoomPlayerPool->Free(*Room_iter);
+				Room_iter = (*iter).second->RoomPlayer.erase(Room_iter);
 			}
 		}
 	}

@@ -574,6 +574,7 @@ void CBattleServer::ProcAuth_Logout()
 		{
 			pSession->_Mode = CNetSession::MODE_WAIT_LOGOUT;
 			pSession->OnAuth_ClientLeave();
+
 		}
 	}
 	return;
@@ -888,7 +889,7 @@ bool CBattleServer::SendThread_update()
 
 bool CBattleServer::HeartBeatThread_update()
 {
-	UINT64 Now = GetTickCount64();
+	INT64 Now = GetTickCount64();
 	AcquireSRWLockExclusive(&_Srwlock);
 	for (int i = 0; i < _iMaxSession; i++)
 	{

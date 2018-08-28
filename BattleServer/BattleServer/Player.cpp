@@ -45,6 +45,7 @@ void CPlayer::OnAuth_ClientJoin()
 void CPlayer::OnAuth_ClientLeave()
 {
 	//	인증과정에서만 특별하게 사용했던 데이터가 있다면 정리 (아무것도 안할 수도 있음)
+	
 	return;
 }
 
@@ -55,7 +56,6 @@ void CPlayer::OnAuth_Packet(CPacket *pPacket)
 	//-------------------------------------------------------------
 	if (0 == pPacket->GetDataSize())
 	{
-		_pLog->Log(L"Error", LOG_SYSTEM, L"OnAuthPacket - Packet DataSize is 0  Index : %d", this->_iArrayIndex);
 		Disconnect();
 		return;
 	}
@@ -128,6 +128,7 @@ void CPlayer::OnGame_ClientLeave()
 	//	게임 컨텐츠상의 플레이어 정리 ( 월드맵에서 제거, 파티정리 등등 )
 	//------------------------------------------------------------
 	//	플레이 중인 방에서 유저가 나감을 다른 유저들에게 전달
+	
 	OnRoomLeavePlayer_Game();
 	return;
 }
@@ -164,6 +165,8 @@ void CPlayer::OnGame_Packet(CPacket *pPacket)
 void CPlayer::OnGame_ClientRelease()
 {
 	//	해당 클라이언트의 진정한 접속 종료, 정리, 해제 등등 
+	OnRoomLeavePlayer_Auth();
+	OnRoomLeavePlayer_Game();
 	_ClientInfo.ClientID = NULL;
 	_RoomNo = NULL;
 	_AccountNo = NULL;
@@ -543,15 +546,14 @@ bool CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
 {
 	//	_RoomNo에 방 번호와 RoomPlayer 구조체에 Session Index번호 지정
 	//	현재는 락을 걸지 않았지만 차후 문제가 생길경우 락을 추가하여 해결하자
+	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	_RoomNo = Room->RoomNo;
 	int CurUser = NULL;
 	RoomPlayerInfo * pInfo = _pGameServer->_RoomPlayerPool->Alloc();
 	pInfo->AccountNo = _AccountNo;
 	pInfo->Index = _iArrayIndex;
-	AcquireSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 	Room->RoomPlayer.push_back(pInfo);
 	CurUser = InterlockedIncrement(&Room->CurUser);
-	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 
 	//	방 입장 응답 패킷 전송
 	CPacket * newPacket = CPacket::Alloc();
@@ -561,6 +563,8 @@ bool CPlayer::RoomEnterSuccess(BATTLEROOM * Room)
 	*newPacket << Type << _AccountNo << _RoomNo << MaxUser << Result;
 	SendPacket(newPacket);
 	newPacket->Free();
+
+	ReleaseSRWLockExclusive(&_pGameServer->_WaitRoom_lock);
 
 	if (Room->MaxUser == CurUser)
 		return true;
@@ -664,7 +668,7 @@ void CPlayer::OnRoomLeavePlayer_Auth()
 	{
 		if (false == (*iter).second->PlayReady)
 		{
-			_pLog->Log(const_cast<WCHAR*>(L"LeaveRoom"), LOG_SYSTEM, const_cast<WCHAR*>(L"[RoomNo : %d] AccountNo : %d"), _RoomNo, _AccountNo);
+			_pLog->Log(const_cast<WCHAR*>(L"LeaveRoom_Auth"), LOG_SYSTEM, const_cast<WCHAR*>(L"[RoomNo : %d] AccountNo : %d"), _RoomNo, _AccountNo);
 
 			//	마스터 서버로 배틀 서버의 대기방에서 유저가 나감 패킷 전송
 			CPacket *pPacket = CPacket::Alloc();
@@ -724,21 +728,23 @@ void CPlayer::OnRoomLeavePlayer_Game()
 	//	pPacket->AddRef();
 	AcquireSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
 	Map_iter = _pGameServer->_PlayRoomMap.find(_RoomNo);
-	for (Room_iter = (*Map_iter).second->RoomPlayer.begin(); Room_iter != (*Map_iter).second->RoomPlayer.end();)
+	if (Map_iter != _pGameServer->_PlayRoomMap.end())
 	{
-		if ((*Room_iter)->AccountNo == _AccountNo)
+		for (Room_iter = (*Map_iter).second->RoomPlayer.begin(); Room_iter != (*Map_iter).second->RoomPlayer.end();)
 		{
-			_pGameServer->_RoomPlayerPool->Free(*Room_iter);
-			Room_iter = (*Map_iter).second->RoomPlayer.erase(Room_iter);
-			continue;
-		}
-		else
-		{
-			CPacket * pPacket = CPacket::Alloc();
-			*pPacket << Type << _RoomNo << _AccountNo;
-			SendPacket(pPacket);
-			pPacket->Free();
-			Room_iter++;
+			if ((*Room_iter)->AccountNo == _AccountNo)
+			{
+				_pGameServer->_RoomPlayerPool->Free(*Room_iter);
+				Room_iter = (*Map_iter).second->RoomPlayer.erase(Room_iter);
+			}
+			else
+			{
+				CPacket * pPacket = CPacket::Alloc();
+				*pPacket << Type << _RoomNo << _AccountNo;
+				SendPacket(pPacket);
+				pPacket->Free();
+				Room_iter++;
+			}
 		}
 	}
 	ReleaseSRWLockExclusive(&_pGameServer->_PlayRoom_lock);
