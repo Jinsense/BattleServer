@@ -111,6 +111,7 @@ public:
 	//-----------------------------------------------------------
 	//	사용자 함수 - OnGame_Update
 	//-----------------------------------------------------------
+	void	PlayRoomGameEnd();
 	void	PlayRoomGameEndCheck();
 	void	PlayRoomDestroyCheck();
 

@@ -127,6 +127,7 @@ void CGameServer::OnGame_Update()
 	//	클라이언트의 요청 (패킷수신) 외에 기본적으로 항시
 	//	처리되어야 할 게임 컨텐츠 부분 로직
 	//-----------------------------------------------------------
+	PlayRoomGameEnd();
 	PlayRoomGameEndCheck();
 	PlayRoomDestroyCheck();
 	return;
@@ -709,6 +710,22 @@ void CGameServer::WaitRoomGameReadyCheck()
 	return;
 }
 
+void CGameServer::PlayRoomGameEnd()
+{
+	__int64 now = GetTickCount64();
+	std::map<int, BATTLEROOM*>::iterator iter;
+	AcquireSRWLockExclusive(&_PlayRoom_lock);
+	for (iter = _PlayRoomMap.begin(); iter != _PlayRoomMap.end(); iter++)
+	{
+		if (now - (*iter).second->ReadyCount > 15000)
+		{
+			(*iter).second->GameEnd = true;
+		}
+	}
+	ReleaseSRWLockExclusive(&_PlayRoom_lock);
+	return;
+}
+
 void CGameServer::PlayRoomGameEndCheck()
 {
 	//-----------------------------------------------------------
@@ -729,6 +746,7 @@ void CGameServer::PlayRoomGameEndCheck()
 		}
 	}
 	ReleaseSRWLockExclusive(&_PlayRoom_lock);
+	return;
 }
 
 void CGameServer::PlayRoomDestroyCheck()
