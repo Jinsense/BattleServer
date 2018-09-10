@@ -399,24 +399,12 @@ void CGameServer::LanMasterCheckThead_Update()
 	UINT64 now = NULL;
 	while (1)
 	{
-		Sleep(5000);
+		Sleep(1000);
 		now = GetTickCount64();
 		if (now - start > Config.CONNECTTOKEN_RECREATE)
 		{
 			NewConnectTokenCreate();
 			start = now;
-
-			if (true == _pMaster->IsConnect())
-			{
-				//	마스터 서버에 재발행 알림
-				CPacket * pMasterPacket = CPacket::Alloc();
-				WORD Type = en_PACKET_BAT_MAS_REQ_CONNECT_TOKEN;
-				*pMasterPacket << Type;
-				pMasterPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
-				*pMasterPacket << _Sequence;
-				_pMaster->SendPacket(pMasterPacket);
-				pMasterPacket->Free();
-			}
 
 			if (true == _bChatConnect)
 			{
@@ -428,6 +416,18 @@ void CGameServer::LanMasterCheckThead_Update()
 				*pChatPacket << _Sequence;
 				_pChat->SendPacket(_ChatClientID, pChatPacket);
 				pChatPacket->Free();
+			}
+
+			if (true == _pMaster->IsConnect())
+			{
+				//	마스터 서버에 재발행 알림
+				CPacket * pMasterPacket = CPacket::Alloc();
+				WORD Type = en_PACKET_BAT_MAS_REQ_CONNECT_TOKEN;
+				*pMasterPacket << Type;
+				pMasterPacket->PushData((char*)&_CurConnectToken, sizeof(_CurConnectToken));
+				*pMasterPacket << _Sequence;
+				_pMaster->SendPacket(pMasterPacket);
+				pMasterPacket->Free();
 			}
 		}
 
