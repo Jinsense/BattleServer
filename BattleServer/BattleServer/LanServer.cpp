@@ -704,6 +704,16 @@ void CChatLanServer::ResChatServerOn(CPacket * pPacket, LANSESSION * pSession)
 
 	_pGameServer->_bChatConnect = true;
 
+	//	채팅서버에 재발행 알림
+	CPacket * pChatPacket = CPacket::Alloc();
+	Type = en_PACKET_CHAT_BAT_REQ_CONNECT_TOKEN;
+	*pChatPacket << Type;
+	pChatPacket->PushData((char*)&_pGameServer->_CurConnectToken, sizeof(_pGameServer->_CurConnectToken));
+	*pChatPacket << _pGameServer->_Sequence;
+	SendPacket(pSession->iClientID, pChatPacket);
+	pChatPacket->Free();
+
+
 	if (false == _pGameServer->_pMaster->Connect(Config.MASTER_BIND_IP, Config.MASTER_BIND_PORT, true, LANCLIENT_WORKERTHREAD))
 	{
 		{
