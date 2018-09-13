@@ -14,6 +14,7 @@ public:
 	~CConfig();
 
 	bool Set();
+	bool API_ReSet();
 
 public:
 	//	NETWORK

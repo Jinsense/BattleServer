@@ -58,6 +58,12 @@ int main()
 			Server.MonitorOnOff();
 		}
 		break;
+		case 'c': case 'C':
+		{
+			if(true == Config.API_ReSet())
+				Server._pLog->Log(const_cast<WCHAR*>(L"ReSet"), LOG_SYSTEM, const_cast<WCHAR*>(L"API ReSet Success"));
+		}
+		break;
 		}
 	}
 	return true;

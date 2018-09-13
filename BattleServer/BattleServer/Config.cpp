@@ -134,3 +134,24 @@ bool CConfig::Set()
 
 	return true;
 }
+
+bool CConfig::API_ReSet()
+{
+	bool res = true;
+	res = _Parse.LoadFile(L"BattleServer_Config.ini");
+	if (false == res)
+		return false;
+	res = _Parse.ProvideArea("NETWORK");
+	if (false == res)
+		return false;
+	_Parse.GetValue("APISERVER_SELECT_ACCOUNT", &IP[0], &APISERVER_SELECT_ACCOUNT_SIZE);
+	_Parse.UTF8toUTF16(IP, APISERVER_SELECT_ACCOUNT, sizeof(APISERVER_SELECT_ACCOUNT));
+	_Parse.GetValue("APISERVER_SELECT_CONTENTS", &IP[0], &APISERVER_SELECT_CONTENTS_SIZE);
+	_Parse.UTF8toUTF16(IP, APISERVER_SELECT_CONTENTS, sizeof(APISERVER_SELECT_CONTENTS));
+	_Parse.GetValue("APISERVER_UPDATE_ACCOUNT", &IP[0], &APISERVER_UPDATE_ACCOUNT_SIZE);
+	_Parse.UTF8toUTF16(IP, APISERVER_UPDATE_ACCOUNT, sizeof(APISERVER_UPDATE_ACCOUNT));
+	_Parse.GetValue("APISERVER_UPDATE_ACCOUNT", &IP[0], &APISERVER_UPDATE_CONTENTS_SIZE);
+	_Parse.UTF8toUTF16(IP, APISERVER_UPDATE_CONTENTS, sizeof(APISERVER_UPDATE_CONTENTS));
+
+	return true;
+}
